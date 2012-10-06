@@ -26,10 +26,19 @@ public class BluetoothServerService extends Service {
 	private BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 	
 	protected NotificationManager nm = null;
+	protected DeviceType type = DeviceType.MASTER_SLAVE;
 	
 	@Override
 	public void onCreate() {
 		nm = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+	}
+	
+	@Override
+	public void onDestroy() {
+		nm.cancel(BluetoothSettings.NOTIFICATION_ID);
+		
+		protocol.destroyAndCleanUp();
+		super.onDestroy();
 	}
 	
 	@Override
@@ -50,44 +59,21 @@ public class BluetoothServerService extends Service {
 		
 		@Override
 		public void removeUser(String mac) throws RemoteException {
-			if(connectedClients.remove(mac)) {
-				BluetoothDevice rmDevice = null;
-				
-				for(BluetoothDevice d : connectedDevices.keySet()) {
-					if(d.getAddress().equals(mac)) {
-						rmDevice = d;
-						break;
-					}
-				}
-				
-				if(rmDevice != null) {
-					BluetoothSocket socket = connectedDevices.get(rmDevice);
-					
-					//Make sure the socket is closed
-					try {
-						socket.close();
-					} catch (IOException e) {
-						
-					}
-					
-					connectedDevices.remove(rmDevice);
-				}
-			}
+			
 		}
 		
 		@Override
 		public boolean registerUser(String mac) throws RemoteException {
 			try {
-				//Add the mac address to the list
-				connectedClients.add(mac);
-				
 				//Create the remote device
 				BluetoothDevice device = adapter.getRemoteDevice(mac);
 				BluetoothSocket socket = device.createInsecureRfcommSocketToServiceRecord(BluetoothSettings.BT_UUID);
 				
-				connectedDevices.put(device, socket);
-			} catch (IOException e) {
+				BluetoothSocketDevice d = new BluetoothSocketDevice(device, socket);
 				
+				protocol.newClient(d);
+			} catch (IOException e) {
+				return false;
 			}
 			
 			return true;

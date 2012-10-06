@@ -1,5 +1,6 @@
 package ca.spencerelliott.scatterfy.routing;
 
+import ca.spencerelliott.scatterfy.services.BluetoothSocketDevice;
 import android.content.Intent;
 
 public interface IRoutingProtocol {
@@ -20,11 +21,22 @@ public interface IRoutingProtocol {
 	 * Called when a new client is trying to connect to the device
 	 * @param mac The MAC address of the new client
 	 */
-	public void newClient(String mac);
+	public void newClient(BluetoothSocketDevice device);
 	
 	/**
 	 * Called when a client has disconnected from the client
 	 * @param mac The MAC address of the disconnected client
 	 */
 	public void disconnectClient(String mac);
+	
+	/**
+	 * Called when a client loses connection to the device
+	 * @param device The device that lost the connection
+	 */
+	public void lostConnection(BluetoothSocketDevice device);
+	
+	/**
+	 * Destroys and closes any connections that this this routing protocol has
+	 */
+	public void destroyAndCleanUp();
 }

@@ -1,34 +1,28 @@
 package ca.spencerelliott.scatterfy;
 
-
-import java.io.IOException;
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import android.os.Bundle;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothServerSocket;
 import android.content.Intent;
 import android.view.Menu;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
 
 public class MainActivity extends Activity {
 	private static final int REQUEST_ENABLE_BT = 0;
 	
-	private static final String BT_UUID = "d6e4a890-01ee-11e2-a21f-0800200c9a66";
-	private BluetoothDevice server = null;
-	private BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-	
-	private BluetoothServerSocket serverSock = null;
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         
-        TextView status = (TextView)findViewById(R.id.status);
+        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         
         if (mBluetoothAdapter == null) {
             // Device does not support Bluetooth
@@ -39,15 +33,36 @@ public class MainActivity extends Activity {
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
         
-        if(mBluetoothAdapter.getAddress().equals("10:BF:48:BF:7A:66")) {
-        	Toast.makeText(this, "You are the server", 1000).show();
-        	
-        	ServerThread thread = new ServerThread(this);
-        	thread.execute(BT_UUID);
-        } else {
-        	ClientThread thread = new ClientThread(this);
-        	thread.execute("10:BF:48:BF:7A:66", BT_UUID);
-        }
+        ArrayList<HashMap<String,String>> adapterList = new ArrayList<HashMap<String,String>>();
+        
+        HashMap<String,String> option = new HashMap<String,String>();
+        option.put("title", "Start a server");
+        
+        adapterList.add(option);
+        
+        option = new HashMap<String,String>();
+        option.put("title", "Join a server");
+        
+        adapterList.add(option);
+        
+        SimpleAdapter adapter = new SimpleAdapter(this, adapterList, R.layout.option_listitem, new String[] { "title" }, new int[] { R.id.itemtext });
+    
+        ListView optionList = (ListView)findViewById(R.id.launch_list);
+        optionList.setAdapter(adapter);
+        
+        optionList.setOnItemClickListener(new OnItemClickListener() {
+			@Override
+			public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+				switch(position) {
+					case 0:
+						Intent serverIntent = new Intent(MainActivity.this, ServerActivity.class);
+						startActivity(serverIntent);
+						break;
+					case 1:
+						break;
+				}
+			}
+        });
     }
     
     @Override

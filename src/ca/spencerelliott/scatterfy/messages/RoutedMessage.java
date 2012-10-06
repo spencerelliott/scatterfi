@@ -36,7 +36,7 @@ public class RoutedMessage {
 		
 		StringBuilder builder = new StringBuilder();
 		
-		for(int i = 16; i < message.length; i++) {
+		for(int i = 16; i < message.length-1; i++) {
 			builder.append(message[i]);
 		}
 		
@@ -125,11 +125,13 @@ public class RoutedMessage {
 		
 		byte[] intent = message.toUri(0).getBytes();
 		
-		byte[] finalMessage = new byte[header.length + intent.length];
+		byte[] finalMessage = new byte[header.length + intent.length + 1];
 		
 		for(int i = 0; i < finalMessage.length; i++) {
 			finalMessage[i] = i < header.length ? header[i] : intent[i - header.length];
 		}
+		
+		finalMessage[finalMessage.length-1] = '\0';
 		
 		return finalMessage;
 	}
@@ -140,12 +142,12 @@ public class RoutedMessage {
 		if(splitAddr.length == 6) {
 			byte[] byteAddr = new byte[6];
 			
-			byteAddr[0] = Byte.parseByte(splitAddr[0], 16);
-			byteAddr[1] = Byte.parseByte(splitAddr[1], 16);
-			byteAddr[2] = Byte.parseByte(splitAddr[2], 16);
-			byteAddr[3] = Byte.parseByte(splitAddr[3], 16);
-			byteAddr[4] = Byte.parseByte(splitAddr[4], 16);
-			byteAddr[5] = Byte.parseByte(splitAddr[5], 16);
+			byteAddr[0] = (byte)Integer.parseInt(splitAddr[0], 16);
+			byteAddr[1] = (byte)Integer.parseInt(splitAddr[1], 16);
+			byteAddr[2] = (byte)Integer.parseInt(splitAddr[2], 16);
+			byteAddr[3] = (byte)Integer.parseInt(splitAddr[3], 16);
+			byteAddr[4] = (byte)Integer.parseInt(splitAddr[4], 16);
+			byteAddr[5] = (byte)Integer.parseInt(splitAddr[5], 16);
 			
 			return byteAddr;
 		}
