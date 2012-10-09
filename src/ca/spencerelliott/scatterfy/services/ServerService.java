@@ -31,6 +31,6 @@ public class ServerService extends BluetoothServerService {
 		nm.notify(BluetoothSettings.NOTIFICATION_ID, notification);
 		
 		//Change the service type to a server
-		type = DeviceType.SERVER;
+		updateType(DeviceType.SERVER);
 	}
 }

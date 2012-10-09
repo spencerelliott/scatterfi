@@ -6,5 +6,7 @@
     <string name="discover">Discover</string>
     <string name="send_message">Send</string>
     <string name="disconnect">Disconnect</string>
+    <string name="connect">Connect</string>
+    <string name="device_addr_hint">Device address</string>
 
 </resources>

@@ -24,6 +24,7 @@
         <activity android:name=".ServerActivity"></activity>
         <service android:name="ca.spencerelliott.scatterfy.services.ServerService"></service>
         <service android:name="ca.spencerelliott.scatterfy.services.ClientService"></service>
+        <activity android:name=".ClientActivity"></activity>
     </application>
 
 </manifest>

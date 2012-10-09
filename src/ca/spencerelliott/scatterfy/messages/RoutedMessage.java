@@ -1,6 +1,7 @@
 package ca.spencerelliott.scatterfy.messages;
 
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 
@@ -30,18 +31,26 @@ public class RoutedMessage {
 	 * @param message The previously create message
 	 */
 	public RoutedMessage(byte[] message) {
-		id = (message[0] << 32) | (message[1] << 24) | (message[2] << 16) | (message[3]);
+		ByteBuffer bBuffer = ByteBuffer.allocate(4);
+		bBuffer.put(message[0]);
+		bBuffer.put(message[1]);
+		bBuffer.put(message[2]);
+		bBuffer.put(message[3]);
+		
+		id = bBuffer.getInt(0);
 		fromAddress = new byte[] { message[4], message[5], message[6], message[7], message[8], message[9] };
 		toAddress = new byte[] { message[10], message[11], message[12], message[13], message[14], message[15] };
 		
 		StringBuilder builder = new StringBuilder();
 		
 		for(int i = 16; i < message.length-1; i++) {
-			builder.append(message[i]);
+			builder.append((char)message[i]);
 		}
 		
+		Log.i("Scatterfi", "Decoded message: id: " + id + "to: " + convertByteArrayToAddress(toAddress) + " from: " + convertByteArrayToAddress(fromAddress) + " intent: " + builder.toString());
+		
 		try {
-			this.message = Intent.parseUri(builder.toString(), 0);
+			this.message = Intent.parseUri(builder.toString(), Intent.URI_INTENT_SCHEME);
 		} catch (URISyntaxException e) {
 			Log.e("Scatterfi", e.getMessage());
 		}
@@ -104,11 +113,16 @@ public class RoutedMessage {
 	 * @return A byte array containing the id, address and intent message
 	 */
 	public byte[] getByteMessage() {
+		ByteBuffer bBuffer = ByteBuffer.allocate(4);
+		bBuffer.putInt(id);
+		
+		byte[] idBytes = bBuffer.array();
+		
 		byte[] header = new byte[] {
-			(byte)(id >> 32),
-			(byte)((id & 0x00FF0000) >> 24),
-			(byte)((id & 0x0000FF00) >> 16),
-			(byte)(id & 0x000000FF),
+			idBytes[0],
+			idBytes[1],
+			idBytes[2],
+			idBytes[3],
 			fromAddress[0],
 			fromAddress[1],
 			fromAddress[2],
@@ -123,11 +137,13 @@ public class RoutedMessage {
 			toAddress[5]
 		};
 		
-		byte[] intent = message.toUri(0).getBytes();
+		byte[] intent = message.toUri(Intent.URI_INTENT_SCHEME).getBytes();
+		
+		Log.i("Scatterfi", "Packaging intent: " + message.toUri(Intent.URI_INTENT_SCHEME));
 		
 		byte[] finalMessage = new byte[header.length + intent.length + 1];
 		
-		for(int i = 0; i < finalMessage.length; i++) {
+		for(int i = 0; i < finalMessage.length-1; i++) {
 			finalMessage[i] = i < header.length ? header[i] : intent[i - header.length];
 		}
 		
@@ -165,9 +181,10 @@ public class RoutedMessage {
 			    hexString.append('0');
 			}
 			
+			if(i > 0) hexString.append(":");
 			hexString.append(hex);
 		}
 		
-		return hexString.toString();
+		return hexString.toString().toUpperCase();
 	}
 }

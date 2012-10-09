@@ -1,6 +1,7 @@
 package ca.spencerelliott.scatterfy.routing;
 
 import ca.spencerelliott.scatterfy.services.BluetoothSocketDevice;
+import ca.spencerelliott.scatterfy.services.DeviceType;
 import android.content.Intent;
 
 public interface IRoutingProtocol {
@@ -39,4 +40,10 @@ public interface IRoutingProtocol {
 	 * Destroys and closes any connections that this this routing protocol has
 	 */
 	public void destroyAndCleanUp();
+	
+	/**
+	 * Sets the type of device that this protocol is running on
+	 * @param type The <code>DeviceType</code> of the device
+	 */
+	public void setDeviceType(DeviceType type);
 }

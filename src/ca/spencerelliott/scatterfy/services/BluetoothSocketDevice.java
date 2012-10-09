@@ -83,6 +83,8 @@ public class BluetoothSocketDevice {
 						sb.append(buffer);
 					}
 					
+					Log.i("Scatterfi", "Receiving message from " + device.getAddress());
+					
 					//Send the message to the routing protocol
 					routing.receiveMessage(sb.toString().getBytes());
 				} catch (IOException e) {

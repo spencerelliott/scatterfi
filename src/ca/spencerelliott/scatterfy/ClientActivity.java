@@ -1,36 +1,41 @@
 package ca.spencerelliott.scatterfy;
 
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
+import ca.spencerelliott.scatterfy.services.ClientService;
 import ca.spencerelliott.scatterfy.services.IBluetoothServerService;
-import ca.spencerelliott.scatterfy.services.ServerService;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
-public class ServerActivity extends Activity {
-	private TextView status = null;
+public class ClientActivity extends Activity {
+private TextView status = null;
 	
 	private IBluetoothServerService service = null;
 	
 	@Override
 	public void onCreate(Bundle savedInstance) {
 		super.onCreate(savedInstance);
-		setContentView(R.layout.activity_server);
+		setContentView(R.layout.activity_client);
 		
-		Intent serverService = new Intent(this, ServerService.class);
+		Intent serverService = new Intent(this, ClientService.class);
 		startService(serverService);
 		
 		status = (TextView)findViewById(R.id.status);
@@ -46,7 +51,6 @@ public class ServerActivity extends Activity {
 					Intent intent = new Intent(Intent.ACTION_VIEW, uri);
 					
 					try {
-						//service.sendMessage(BluetoothSettings.MY_BT_ADDR, intent);
 						service.sendMessage("00:00:00:00:00:00", intent);
 					} catch (RemoteException e) {
 						
@@ -59,7 +63,7 @@ public class ServerActivity extends Activity {
 	@Override
 	public void onStart() {
 		super.onStart();
-		bindService(new Intent(this, ServerService.class), connection, Context.BIND_AUTO_CREATE);
+		bindService(new Intent(this, ClientService.class), connection, Context.BIND_AUTO_CREATE);
 	}
 	
 	@Override
@@ -70,7 +74,7 @@ public class ServerActivity extends Activity {
 	
 	@Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.activity_server, menu);
+        getMenuInflater().inflate(R.menu.activity_client, menu);
         return true;
     }
 	
@@ -79,13 +83,52 @@ public class ServerActivity extends Activity {
 	    // Handle item selection
 	    switch (item.getItemId()) {
 	        case R.id.menu_disconnect:
-	        	stopService(new Intent(this, ServerService.class));
+	        	stopService(new Intent(this, ClientService.class));
+	        	finish();
+	        	break;
+	        case R.id.menu_connect:
+				try {
+					if(!service.isConnected()) {
+		        		LayoutInflater inflater = LayoutInflater.from(this);
+		        		
+		        		LinearLayout dialogInflated = (LinearLayout)inflater.inflate(R.layout.connect_dialog, null);
+		        		final TextView deviceText = (TextView)dialogInflated.findViewById(R.id.device_mac);
+		        		
+		        		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		        		AlertDialog dialog = builder.setView(dialogInflated)
+		        			.setTitle(R.string.connect)
+		        			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									String mac = deviceText.getText().toString();
+									
+									if(service != null) {
+										try {
+											service.registerUser(mac);
+										} catch (RemoteException e) {
+											Log.i("Scatterfi", "Could not register device: " + e.getMessage());
+										}
+									}
+								}
+		        			})
+		        			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									dialog.dismiss();
+								}
+							})
+							.create();
+		        		
+		        		dialog.show();
+		        			
+		        	}
+				} catch (RemoteException e) {
+					
+				}
 	        	break;
 	        default:
 	            return super.onOptionsItemSelected(item);
 	    }
-	    
-	    finish();
 	    
 	    return true;
 	}
@@ -93,7 +136,7 @@ public class ServerActivity extends Activity {
 	private ServiceConnection connection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName arg0, IBinder binder) {
-			ServerActivity.this.runOnUiThread(new Runnable() {
+			ClientActivity.this.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
 					status.setText("Connected to service (MAC " + BluetoothSettings.MY_BT_ADDR + ")");
@@ -106,7 +149,7 @@ public class ServerActivity extends Activity {
 
 		@Override
 		public void onServiceDisconnected(ComponentName arg0) {
-			ServerActivity.this.runOnUiThread(new Runnable() {
+			ClientActivity.this.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
 					status.setText("Not connected (MAC " + BluetoothSettings.MY_BT_ADDR + ")");

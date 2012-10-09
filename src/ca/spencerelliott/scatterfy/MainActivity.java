@@ -59,6 +59,8 @@ public class MainActivity extends Activity {
 						startActivity(serverIntent);
 						break;
 					case 1:
+						Intent clientIntent = new Intent(MainActivity.this, ClientActivity.class);
+						startActivity(clientIntent);
 						break;
 				}
 			}

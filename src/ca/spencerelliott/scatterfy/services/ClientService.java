@@ -11,6 +11,8 @@ public class ClientService extends BluetoothServerService {
 	@SuppressWarnings("deprecation")
 	@Override
 	public void onCreate() {
+		super.onCreate();
+		
 		int icon = R.drawable.ic_launcher;
 		CharSequence tickerText = "Scatterfi is running";
 		long when = System.currentTimeMillis();

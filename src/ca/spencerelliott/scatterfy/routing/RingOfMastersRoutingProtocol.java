@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import ca.spencerelliott.scatterfy.messages.RoutedMessage;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.BluetoothSocketDevice;
+import ca.spencerelliott.scatterfy.services.DeviceType;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
@@ -15,6 +16,8 @@ import android.content.Intent;
 import android.util.Log;
 
 public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
+	private DeviceType type = DeviceType.MASTER_SLAVE;
+	
 	private BluetoothSocketDevice next = null;
 	//private BluetoothSocketDevice prev = null;
 	
@@ -34,10 +37,18 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	}
 	
 	@Override
-	public synchronized void sendMessage(String to, Intent message) {
+	public synchronized void sendMessage(String to, Intent message) {		
 		byte[] toBytes = RoutedMessage.convertAddressToByteArray(to);
 		
 		RoutedMessage routed = new RoutedMessage(toBytes, message);
+		
+		//Loopback message received
+		if(to.equals(BluetoothSettings.MY_BT_ADDR)) {
+			Log.i("Scatterfi", "Loopback message received");
+			receiveMessage(routed.getByteMessage());
+			return;
+		}
+		
 		sendIds.add(routed.getId());
 		
 		//Check to see if this is a broadcast and should be forwarded everywhere
@@ -74,6 +85,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	public synchronized void receiveMessage(byte[] message) {
 		RoutedMessage received = new RoutedMessage(message);
 		
+		Log.i("Scatterfi", "Message received: " + received.getIntent());
+		
 		//Make sure we haven't received this message before
 		if(!sendIds.contains(received.getId())) {
 			//Add the id to the processed ids
@@ -84,7 +97,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Check to see if this message is for this device or a broadcast
 			if(address.equals(BluetoothSettings.MY_BT_ADDR) || address.equals(BluetoothSettings.BROADCAST_MAC)) {
-				context.startActivity(received.getIntent());
+				processIntent(received.getIntent());
 				
 				//Resend this message if it was a broadcast
 				if(address.equals(BluetoothSettings.BROADCAST_MAC)) {
@@ -98,6 +111,15 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 
 	@Override
 	public void newClient(BluetoothSocketDevice device) {
+		switch(type) {
+			case SERVER:
+				serverConnect(device);
+				break;
+			case MASTER_SLAVE:
+			case SLAVE:
+				clientConnect(device);
+				break;
+		}
 		clients.add(device);
 	}
 
@@ -114,6 +136,11 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	@Override
 	public void destroyAndCleanUp() {
 		thread.stopListening();
+	}
+	
+	@Override
+	public void setDeviceType(DeviceType type) {
+		this.type = type;
 	}
 	
 	private class BackgroundConnectionThread extends Thread {
@@ -166,5 +193,18 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		public void stopListening() {
 			threadRunning = false;
 		}
+	}
+	
+	private void processIntent(Intent intent) {
+		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+		context.startActivity(intent);
+	}
+	
+	private void serverConnect(BluetoothSocketDevice device) {
+		
+	}
+	
+	private void clientConnect(BluetoothSocketDevice device) {
+		
 	}
 }
