@@ -3,7 +3,9 @@ package ca.spencerelliott.scatterfy.services;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
+import ca.spencerelliott.scatterfy.messages.RoutedMessage;
 import ca.spencerelliott.scatterfy.routing.IRoutingProtocol;
 
 import android.bluetooth.BluetoothDevice;
@@ -73,20 +75,47 @@ public class BluetoothSocketDevice {
 			}
 			
 			while(true) {
-				//Create a buffer and string buffer
-				StringBuilder sb = new StringBuilder();
-				byte[] buffer = new byte[255];
+				ByteBuffer ba = ByteBuffer.allocate(512);
 				
 				try {
+					int eomCount = 0;
+					
 					//Read the data from the buffer
-					while(is.read(buffer) > 0) {
-						sb.append(buffer);
+					while(true) {
+						byte readByte = (byte)is.read();
+						
+						ba.put(readByte);
+						
+						//Grow the size of the byte buffer if needed
+						if(!ba.hasRemaining()) {
+							ByteBuffer temp = ByteBuffer.allocate(ba.limit()*2);
+							temp.put(ba.array());
+							
+							ba = temp;
+						}
+						
+						if(readByte == RoutedMessage.EOM[eomCount]) {
+							eomCount++;
+						} else {
+							eomCount = 0;
+						}
+						
+						if(eomCount >= RoutedMessage.EOM.length) {
+							break;
+						}
 					}
 					
 					Log.i("Scatterfi", "Receiving message from " + device.getAddress());
+
+					byte[] finalArray = new byte[ba.limit()-ba.remaining()];
+					byte[] baArray = ba.array();
+					
+					for(int i = 0; i < finalArray.length; i++) {
+						finalArray[i] = baArray[i];
+					}
 					
 					//Send the message to the routing protocol
-					routing.receiveMessage(sb.toString().getBytes());
+					routing.receiveMessage(finalArray);
 				} catch (IOException e) {
 					Log.e("Scatterfi", e.getMessage());
 					break;

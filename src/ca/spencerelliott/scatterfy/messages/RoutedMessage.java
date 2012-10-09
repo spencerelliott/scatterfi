@@ -14,6 +14,8 @@ public class RoutedMessage {
 	private static byte[] fromAddress = null;
 	private Intent message = null;
 	
+	public final static byte[] EOM = new byte[] { (byte)0xFF, (byte)0xFE, (byte)0xFD };
+	
 	/**
 	 * Creates an empty <code>Routedmessage</code> with a generated id
 	 */
@@ -43,7 +45,7 @@ public class RoutedMessage {
 		
 		StringBuilder builder = new StringBuilder();
 		
-		for(int i = 16; i < message.length-1; i++) {
+		for(int i = 16; i < message.length-EOM.length; i++) {
 			builder.append((char)message[i]);
 		}
 		
@@ -141,13 +143,15 @@ public class RoutedMessage {
 		
 		Log.i("Scatterfi", "Packaging intent: " + message.toUri(Intent.URI_INTENT_SCHEME));
 		
-		byte[] finalMessage = new byte[header.length + intent.length + 1];
+		byte[] finalMessage = new byte[header.length + intent.length + EOM.length];
 		
-		for(int i = 0; i < finalMessage.length-1; i++) {
+		for(int i = 0; i < finalMessage.length-EOM.length; i++) {
 			finalMessage[i] = i < header.length ? header[i] : intent[i - header.length];
 		}
 		
-		finalMessage[finalMessage.length-1] = '\0';
+		finalMessage[finalMessage.length-3] = EOM[0];
+		finalMessage[finalMessage.length-2] = EOM[1];
+		finalMessage[finalMessage.length-1] = EOM[2];
 		
 		return finalMessage;
 	}
@@ -175,13 +179,14 @@ public class RoutedMessage {
 		StringBuilder hexString = new StringBuilder();
 		
 		for(int i = 0; i < address.length; i++) {
+			if(i > 0) hexString.append(":");
+			
 			String hex = Integer.toHexString(0xFF & address[i]);
 			
 			if (hex.length() == 1) {
 			    hexString.append('0');
 			}
 			
-			if(i > 0) hexString.append(":");
 			hexString.append(hex);
 		}
 		

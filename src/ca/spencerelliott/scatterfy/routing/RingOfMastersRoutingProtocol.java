@@ -176,6 +176,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 					if(socket != null) {
 						//Create the socket device
 						BluetoothSocketDevice newDevice = new BluetoothSocketDevice(socket.getRemoteDevice(), socket);
+						newDevice.setRoutingProtocol(protocol);
 						
 						//Pass it to the protocol to handle
 						if(protocol != null) {
