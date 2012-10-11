@@ -94,19 +94,23 @@ public class BluetoothSocketDevice {
 							ba = temp;
 						}
 						
+						//Check the byte to see if it's part of the end of message
 						if(readByte == RoutedMessage.EOM[eomCount]) {
 							eomCount++;
+						//Reset the count if the byte doesn't match
 						} else {
 							eomCount = 0;
 						}
 						
+						//Finish reading the message and send it to the routing protocol
 						if(eomCount >= RoutedMessage.EOM.length) {
 							break;
 						}
 					}
 					
 					Log.i("Scatterfi", "Receiving message from " + device.getAddress());
-
+					
+					//Copy the buffer into the final array of data
 					byte[] finalArray = new byte[ba.limit()-ba.remaining()];
 					byte[] baArray = ba.array();
 					
@@ -119,6 +123,7 @@ public class BluetoothSocketDevice {
 				} catch (IOException e) {
 					Log.e("Scatterfi", e.getMessage());
 					
+					//Let the routing protocol know that the connection was lost
 					routing.lostConnection(BluetoothSocketDevice.this);
 					break;
 				}

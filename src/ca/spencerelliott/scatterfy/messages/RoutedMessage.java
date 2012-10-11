@@ -9,7 +9,7 @@ import android.content.Intent;
 import android.util.Log;
 
 public class RoutedMessage {
-	private int id = 0;
+	private long id = 0;
 	private byte[] toAddress = null;
 	private static byte[] fromAddress = null;
 	private Intent message = null;
@@ -20,7 +20,7 @@ public class RoutedMessage {
 	 * Creates an empty <code>Routedmessage</code> with a generated id
 	 */
 	public RoutedMessage() {
-		id = (int)(System.currentTimeMillis()/1000);
+		id = System.currentTimeMillis();
 		
 		//The from address only needs to be gathered the first time a message is created
 		if(fromAddress == null) {
@@ -33,13 +33,17 @@ public class RoutedMessage {
 	 * @param message The previously create message
 	 */
 	public RoutedMessage(byte[] message) {
-		ByteBuffer bBuffer = ByteBuffer.allocate(4);
+		ByteBuffer bBuffer = ByteBuffer.allocate(8);
 		bBuffer.put(message[0]);
 		bBuffer.put(message[1]);
 		bBuffer.put(message[2]);
 		bBuffer.put(message[3]);
+		bBuffer.put(message[4]);
+		bBuffer.put(message[5]);
+		bBuffer.put(message[6]);
+		bBuffer.put(message[7]);
 		
-		id = bBuffer.getInt(0);
+		id = bBuffer.getLong(0);
 		fromAddress = new byte[] { message[4], message[5], message[6], message[7], message[8], message[9] };
 		toAddress = new byte[] { message[10], message[11], message[12], message[13], message[14], message[15] };
 		
@@ -90,7 +94,7 @@ public class RoutedMessage {
 	 * Retrieves the id of this message
 	 * @return The id of the message
 	 */
-	public int getId() {
+	public long getId() {
 		return id;
 	}
 	
@@ -115,8 +119,8 @@ public class RoutedMessage {
 	 * @return A byte array containing the id, address and intent message
 	 */
 	public byte[] getByteMessage() {
-		ByteBuffer bBuffer = ByteBuffer.allocate(4);
-		bBuffer.putInt(id);
+		ByteBuffer bBuffer = ByteBuffer.allocate(8);
+		bBuffer.putLong(id);
 		
 		byte[] idBytes = bBuffer.array();
 		
@@ -125,6 +129,10 @@ public class RoutedMessage {
 			idBytes[1],
 			idBytes[2],
 			idBytes[3],
+			idBytes[4],
+			idBytes[5],
+			idBytes[6],
+			idBytes[7],
 			fromAddress[0],
 			fromAddress[1],
 			fromAddress[2],
@@ -157,11 +165,14 @@ public class RoutedMessage {
 	}
 	
 	public static byte[] convertAddressToByteArray(String address) {
+		//Split the address based on the colon
 		String[] splitAddr = address.split(":");
 		
+		//Make sure the address is valid
 		if(splitAddr.length == 6) {
 			byte[] byteAddr = new byte[6];
 			
+			//Convert all of the hex strings into bytes
 			byteAddr[0] = (byte)Integer.parseInt(splitAddr[0], 16);
 			byteAddr[1] = (byte)Integer.parseInt(splitAddr[1], 16);
 			byteAddr[2] = (byte)Integer.parseInt(splitAddr[2], 16);
@@ -169,6 +180,7 @@ public class RoutedMessage {
 			byteAddr[4] = (byte)Integer.parseInt(splitAddr[4], 16);
 			byteAddr[5] = (byte)Integer.parseInt(splitAddr[5], 16);
 			
+			//Return the converted address
 			return byteAddr;
 		}
 		
@@ -178,18 +190,24 @@ public class RoutedMessage {
 	public static String convertByteArrayToAddress(byte[] address) {
 		StringBuilder hexString = new StringBuilder();
 		
+		//Loop through each byte in the array
 		for(int i = 0; i < address.length; i++) {
+			//Add the colon
 			if(i > 0) hexString.append(":");
 			
+			//Convert the byte to hex
 			String hex = Integer.toHexString(0xFF & address[i]);
 			
+			//Prefix a zero if the hex is less than 16
 			if (hex.length() == 1) {
 			    hexString.append('0');
 			}
 			
+			//Add the hex string
 			hexString.append(hex);
 		}
 		
+		//Convert the final hex string to all upper case
 		return hexString.toString().toUpperCase();
 	}
 }

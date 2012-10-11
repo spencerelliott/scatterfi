@@ -2,6 +2,7 @@ package ca.spencerelliott.scatterfy.routing;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.messages.RoutedMessage;
@@ -24,12 +25,14 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	private BluetoothSocketDevice next = null;
 	//private BluetoothSocketDevice prev = null;
 	
+	protected HashMap<String,ArrayList<String>> networkMap = null;
+	
 	private ArrayList<String> incomingClients = new ArrayList<String>();
 	private String incomingMasterSlave = "";
 	
 	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
 	
-	private ArrayList<Integer> sendIds = new ArrayList<Integer>();
+	private ArrayList<Long> sendIds = new ArrayList<Long>();
 	
 	private Context context = null;
 	
@@ -117,6 +120,22 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 
 	@Override
 	public void newClient(BluetoothSocketDevice device) {
+		if(incomingMasterSlave != null && incomingMasterSlave.equals(device.getAddress())) {
+			incomingMasterSlave = null;
+			
+			//Set the device as the next node
+			next = device;
+			return;
+		}
+		
+		if(incomingClients.contains(device.getAddress())) {
+			incomingClients.remove(device.getAddress());
+			
+			//Add the device to the set of clients
+			clients.add(device);
+			return;
+		}
+		
 		switch(type) {
 			case SERVER:
 				serverConnect(device);
@@ -136,7 +155,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	
 	@Override
 	public void lostConnection(BluetoothSocketDevice device) {
-		
+		Log.i("Scatterfi", device.getAddress() + " lost connection");
 	}
 	
 	@Override
@@ -147,6 +166,11 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	@Override
 	public void setDeviceType(DeviceType type) {
 		this.type = type;
+		
+		//Initialize the network map if the new type is a server
+		if(type == DeviceType.SERVER) {
+			networkMap = new HashMap<String,ArrayList<String>>();
+		}
 	}
 	
 	private class BackgroundConnectionThread extends Thread {
@@ -261,11 +285,21 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		}
 	}
 	
-	private void serverConnect(BluetoothSocketDevice device) {
+	private void serverConnect(BluetoothSocketDevice device) {		
+		//If this is the first node in the network
+		if(next == null) {
+			next = device;
+			
+			//TODO Send message to connected device to switch it to master/slave
+			return;
+		}
 		
+		//TODO Check to see if last master/slave has room and allocate the device accordingly
+		
+		//TODO Add the new client to the network map
 	}
 	
 	private void clientConnect(BluetoothSocketDevice device) {
-		
+		//TODO Redirect the device back to the server for network allocation
 	}
 }
