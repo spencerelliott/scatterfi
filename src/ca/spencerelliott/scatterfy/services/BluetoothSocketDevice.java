@@ -118,6 +118,8 @@ public class BluetoothSocketDevice {
 					routing.receiveMessage(finalArray);
 				} catch (IOException e) {
 					Log.e("Scatterfi", e.getMessage());
+					
+					routing.lostConnection(BluetoothSocketDevice.this);
 					break;
 				}
 			}

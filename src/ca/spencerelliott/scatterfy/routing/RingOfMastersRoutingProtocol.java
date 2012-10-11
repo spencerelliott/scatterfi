@@ -3,16 +3,19 @@ package ca.spencerelliott.scatterfy.routing;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.messages.RoutedMessage;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.BluetoothSocketDevice;
 import ca.spencerelliott.scatterfy.services.DeviceType;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 
 public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
@@ -20,6 +23,9 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	
 	private BluetoothSocketDevice next = null;
 	//private BluetoothSocketDevice prev = null;
+	
+	private ArrayList<String> incomingClients = new ArrayList<String>();
+	private String incomingMasterSlave = "";
 	
 	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
 	
@@ -196,9 +202,63 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		}
 	}
 	
+	private void clearAllConnections() {
+		
+	}
+	
 	private void processIntent(Intent intent) {
-		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-		context.startActivity(intent);
+		if(intent.getAction().equals(MessageIntent.CONNECT)) {
+			clearAllConnections();
+			
+			//Get the extras from the sent intent
+			Bundle extras = intent.getExtras();
+			
+			//Retrieve the MAC address to connect to and the new device type
+			String mac = extras.getString("mac");
+			type = (DeviceType)extras.get("type");
+			
+			try {
+				//Connect to the device
+				BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(mac);
+				BluetoothSocket socket = device.createInsecureRfcommSocketToServiceRecord(BluetoothSettings.BT_UUID);
+				socket.connect();
+				
+				BluetoothSocketDevice d = new BluetoothSocketDevice(device, socket);
+				d.setRoutingProtocol(this);
+				
+				//If this device is a slave, set it up to forward its messages to the master/slave (d)
+				if(type == DeviceType.SLAVE) {
+					next = d;
+				}
+			} catch(IOException e) { 
+				Log.i("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
+			}
+		} else if(intent.getAction().equals(MessageIntent.INCOMING_SLAVE) && type == DeviceType.MASTER_SLAVE) {
+			//Get the extras from the intent and retrieve the incoming MAC address
+			Bundle extras = intent.getExtras();
+			String mac = extras.getString("mac");
+			
+			//Add the MAC address to the incoming client list
+			incomingClients.add(mac);
+		} else if(intent.getAction().equals(MessageIntent.INCOMING_MASTER_SLAVE) && type == DeviceType.MASTER_SLAVE) {
+			//Get the extras from the intent and retrieve the incoming MAC address
+			Bundle extras = intent.getExtras();
+			String mac = extras.getString("mac");
+			
+			//Set the next master/slave MAC address
+			incomingMasterSlave = mac;
+		} else if(intent.getAction().equals(MessageIntent.CHAT_MESSAGE)) {
+			
+		} else if(intent.getAction().equals(MessageIntent.NOTE_MESSAGE)) {
+			
+		} else if(intent.getAction().equals(MessageIntent.DISCOVERY)) {
+			
+		} else if(intent.getAction().equals(MessageIntent.LOST_CONNECTION) && type == DeviceType.SERVER) {
+			
+		} else {
+			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			context.startActivity(intent);
+		}
 	}
 	
 	private void serverConnect(BluetoothSocketDevice device) {
