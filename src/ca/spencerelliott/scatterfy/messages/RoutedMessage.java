@@ -11,7 +11,7 @@ import android.util.Log;
 public class RoutedMessage {
 	private long id = 0;
 	private byte[] toAddress = null;
-	private static byte[] fromAddress = null;
+	private byte[] fromAddress = null;
 	private Intent message = null;
 	
 	public final static byte[] EOM = new byte[] { (byte)0xFF, (byte)0xFE, (byte)0xFD };
@@ -23,9 +23,7 @@ public class RoutedMessage {
 		id = System.currentTimeMillis();
 		
 		//The from address only needs to be gathered the first time a message is created
-		if(fromAddress == null) {
-			fromAddress = convertAddressToByteArray(BluetoothSettings.MY_BT_ADDR);
-		}
+		fromAddress = convertAddressToByteArray(BluetoothSettings.MY_BT_ADDR);
 	}
 	
 	/**
@@ -104,6 +102,14 @@ public class RoutedMessage {
 	 */
 	public byte[] getToAddress() {
 		return this.toAddress;
+	}
+	
+	/**
+	 * Retrieves the from address
+	 * @return The from address this message contains
+	 */
+	public byte[] getFromAddress() {
+		return this.fromAddress;
 	}
 	
 	/**

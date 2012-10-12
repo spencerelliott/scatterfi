@@ -28,10 +28,18 @@ public class BluetoothSocketDevice {
 		thread.start();
 	}
 	
+	/**
+	 * Sets the routing protocol callback for receiving messages
+	 * @param routing The routing protocol to be called when receiving messages
+	 */
 	public void setRoutingProtocol(IRoutingProtocol routing) {
 		this.routing = routing;
 	}
 	
+	/**
+	 * Writes a message to the output stream of the Bluetooth socket
+	 * @param message The message to write to the stream
+	 */
 	public void writeMessage(byte[] message) {
 		try {
 			OutputStream os = socket.getOutputStream();
@@ -42,18 +50,33 @@ public class BluetoothSocketDevice {
 		
 	}
 	
+	/**
+	 * Retrieves the address of this Bluetooth device
+	 * @return The address of the Bluetooth device
+	 */
 	public String getAddress() {
 		return device.getAddress();
 	}
 	
+	/**
+	 * Retrieves the actual Bluetooth device 
+	 * @return The Bluetooth device associated with this object
+	 */
 	public BluetoothDevice getDevice() {
 		return device;
 	}
 	
+	/**
+	 * Retrieves the actual socket of the Bluetooth device
+	 * @return The Bluetooth socket associated with this object
+	 */
 	public BluetoothSocket getSocket() {
 		return socket;
 	}
 	
+	/**
+	 * Closes the socket connected to this Bluetooth device
+	 */
 	public void cleanup() {
 		try {
 			socket.close();
@@ -121,7 +144,7 @@ public class BluetoothSocketDevice {
 					//Send the message to the routing protocol
 					routing.receiveMessage(finalArray);
 				} catch (IOException e) {
-					Log.e("Scatterfi", e.getMessage());
+					Log.e("Scatterfi", "Lost connection in BluetoothSocketDevice: " + e.getMessage());
 					
 					//Let the routing protocol know that the connection was lost
 					routing.lostConnection(BluetoothSocketDevice.this);

@@ -3,6 +3,8 @@ package ca.spencerelliott.scatterfy.routing;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Set;
 
 import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.messages.RoutedMessage;
@@ -20,15 +22,19 @@ import android.os.Bundle;
 import android.util.Log;
 
 public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
+	/** The maximum amount of devices that should be allocated to each master/slave node */
+	public static final int MAX_DEVICES_PER_MS = 2;
+	
 	private DeviceType type = DeviceType.MASTER_SLAVE;
 	
 	private BluetoothSocketDevice next = null;
-	//private BluetoothSocketDevice prev = null;
 	
-	protected HashMap<String,ArrayList<String>> networkMap = null;
+	protected LinkedHashMap<String,ArrayList<String>> networkMap = null;
 	
 	private ArrayList<String> incomingClients = new ArrayList<String>();
 	private String incomingMasterSlave = "";
+	
+	private String serverAddress = null;
 	
 	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
 	
@@ -106,7 +112,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Check to see if this message is for this device or a broadcast
 			if(address.equals(BluetoothSettings.MY_BT_ADDR) || address.equals(BluetoothSettings.BROADCAST_MAC)) {
-				processIntent(received.getIntent());
+				processIntent(received);
 				
 				//Resend this message if it was a broadcast
 				if(address.equals(BluetoothSettings.BROADCAST_MAC)) {
@@ -125,6 +131,14 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Set the device as the next node
 			next = device;
+			
+			//Notify the server that the device connected successfully
+			Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
+			intent.putExtra("mac", device.getAddress());
+			intent.putExtra("type", DeviceType.MASTER_SLAVE);
+			
+			sendMessage(serverAddress, intent);
+			
 			return;
 		}
 		
@@ -133,6 +147,14 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Add the device to the set of clients
 			clients.add(device);
+			
+			//Notify the server that the device connected successfully
+			Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
+			intent.putExtra("mac", device.getAddress());
+			intent.putExtra("type", DeviceType.SLAVE);
+			
+			sendMessage(serverAddress, intent);
+
 			return;
 		}
 		
@@ -145,7 +167,6 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				clientConnect(device);
 				break;
 		}
-		clients.add(device);
 	}
 
 	@Override
@@ -169,7 +190,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		
 		//Initialize the network map if the new type is a server
 		if(type == DeviceType.SERVER) {
-			networkMap = new HashMap<String,ArrayList<String>>();
+			networkMap = new LinkedHashMap<String,ArrayList<String>>();
 		}
 	}
 	
@@ -227,10 +248,24 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	}
 	
 	private void clearAllConnections() {
+		//Disconnect from the next node if it exists
+		if(next != null) {
+			next.cleanup();
+			next = null;
+		}
 		
+		//Disconnect from all clients
+		for(BluetoothSocketDevice d : clients) {
+			d.cleanup();
+		}
+		
+		//Create a new list of clients
+		clients = new ArrayList<BluetoothSocketDevice>();
 	}
 	
-	private void processIntent(Intent intent) {
+	private void processIntent(RoutedMessage message) {
+		Intent intent = message.getIntent();
+		
 		if(intent.getAction().equals(MessageIntent.CONNECT)) {
 			clearAllConnections();
 			
@@ -240,6 +275,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			//Retrieve the MAC address to connect to and the new device type
 			String mac = extras.getString("mac");
 			type = (DeviceType)extras.get("type");
+			
+			Log.i("Scatterfi", "Attempting to connect to " + mac + " [" + intent.getAction() + "]");
 			
 			try {
 				//Connect to the device
@@ -253,6 +290,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				//If this device is a slave, set it up to forward its messages to the master/slave (d)
 				if(type == DeviceType.SLAVE) {
 					next = d;
+				} else {
+					newClient(d);
 				}
 			} catch(IOException e) { 
 				Log.i("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
@@ -262,24 +301,48 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			Bundle extras = intent.getExtras();
 			String mac = extras.getString("mac");
 			
+			Log.i("Scatterfi", "Adding new incoming slave: " + mac + " [" + intent.getAction() + "]");
+			
 			//Add the MAC address to the incoming client list
 			incomingClients.add(mac);
-		} else if(intent.getAction().equals(MessageIntent.INCOMING_MASTER_SLAVE) && type == DeviceType.MASTER_SLAVE) {
+		} else if(intent.getAction().equals(MessageIntent.INCOMING_MASTER_SLAVE) && type == DeviceType.MASTER_SLAVE) {			
 			//Get the extras from the intent and retrieve the incoming MAC address
 			Bundle extras = intent.getExtras();
 			String mac = extras.getString("mac");
 			
+			Log.i("Scatterfi", "Setting new incoming master/slave to " + mac + " [" + intent.getAction() + "]");
+			
 			//Set the next master/slave MAC address
 			incomingMasterSlave = mac;
 		} else if(intent.getAction().equals(MessageIntent.CHAT_MESSAGE)) {
-			
+			Log.i("Scatterfi", "Chat message received" + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.NOTE_MESSAGE)) {
-			
+			Log.i("Scatterfi", "Note received" + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.DISCOVERY)) {
-			
+			Log.i("Scatterfi", "Discovery request sent by " + RoutedMessage.convertByteArrayToAddress(message.getFromAddress()) + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.LOST_CONNECTION) && type == DeviceType.SERVER) {
 			
+		} else if(intent.getAction().equals(MessageIntent.SERVER_MAC) && serverAddress == null) {
+			Log.i("Scatterfi", "Setting server address to " + intent.getExtras().getString("mac") + " [" + intent.getAction() + "]");
+			
+			serverAddress = intent.getExtras().getString("mac");
+		} else if(intent.getAction().equals(MessageIntent.NEW_DEVICE_CONNECTED) && type == DeviceType.SERVER) {
+			DeviceType connectionType = (DeviceType)intent.getExtras().get("type");
+			
+			Log.i("Scatterfi", "New " + connectionType.name() + " connected" + " [" + intent.getAction() + "]");
+			
+			switch(connectionType) {
+				case MASTER_SLAVE:
+					//Add the master/slave to the network map
+					networkMap.put(intent.getExtras().getString("mac"), new ArrayList<String>());
+					break;
+				case SLAVE:
+					//Add the slave to the master/slave node that sent the message
+					networkMap.get(RoutedMessage.convertByteArrayToAddress(message.getFromAddress())).add(intent.getExtras().getString("mac"));
+					break;
+			}
 		} else {
+			//Let Android handle the intent otherwise
 			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 			context.startActivity(intent);
 		}
@@ -287,19 +350,83 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	
 	private void serverConnect(BluetoothSocketDevice device) {		
 		//If this is the first node in the network
-		if(next == null) {
-			next = device;
+		if(next == null) {			
+			Log.i("Scatterfi", "First master/slave connected to network");
 			
-			//TODO Send message to connected device to switch it to master/slave
+			//Create the intent to send a loopback to say that this device will become a master/slave
+			Intent intent = new Intent(MessageIntent.INCOMING_MASTER_SLAVE);
+			intent.putExtra("mac", device.getAddress());
+			
+			//Send the loopback message
+			RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(BluetoothSettings.MY_BT_ADDR), intent);
+			device.writeMessage(message.getByteMessage());
+			
+			//Create the intent to send to the device to tell it to connect to the server again
+			intent = new Intent(MessageIntent.CONNECT);
+			intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
+			intent.putExtra("type", type);
+			
+			//Send the message to the new device
+			message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+			device.writeMessage(message.getByteMessage());
 			return;
 		}
 		
-		//TODO Check to see if last master/slave has room and allocate the device accordingly
+		Set<String> msNodes = networkMap.keySet();
+		String lastNode = null;
 		
-		//TODO Add the new client to the network map
+		//Check the amount of nodes on each master/slave in the map
+		for(String s : msNodes) {
+			lastNode = s;
+			
+			ArrayList<String> msList = networkMap.get(s);
+			
+			//If this node has more room for clients, notify the master/slave of an incoming connection
+			//and tell the new client to connect to the master/slave
+			if(msList.size() < MAX_DEVICES_PER_MS) {
+				Log.i("Scatterfi", "Assigning " + device.getAddress() + " to " + s);
+				
+				Intent intent = new Intent(MessageIntent.INCOMING_SLAVE);
+				intent.putExtra("mac", device.getAddress());
+				
+				sendMessage(s, intent);
+				
+				intent = new Intent(MessageIntent.CONNECT);
+				intent.putExtra("mac", s);
+				intent.putExtra("type", DeviceType.SLAVE);
+				
+				RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+				device.writeMessage(message.getByteMessage());
+				
+				return;
+			}
+		}
+		
+		//No room on the network, add this node as a master/slave. Send the last added node
+		//a message notifying it of a new incoming master/slave
+		Intent intent = new Intent(MessageIntent.INCOMING_MASTER_SLAVE);
+		intent.putExtra("mac", device.getAddress());
+		
+		sendMessage(lastNode, intent);
+		
+		//Create the intent to tell the new device to connect to the last node
+		intent = new Intent(MessageIntent.CONNECT);
+		intent.putExtra("mac", lastNode);
+		intent.putExtra("type", DeviceType.MASTER_SLAVE);
+		
+		RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+		device.writeMessage(message.getByteMessage());
 	}
 	
 	private void clientConnect(BluetoothSocketDevice device) {
-		//TODO Redirect the device back to the server for network allocation
+		Log.i("Scatterfi", "Sending " + device.getAddress() + " back to server");
+		
+		//Create the intent to tell the device to connect back to the server
+		Intent intent = new Intent(MessageIntent.CONNECT);
+		intent.putExtra("mac", serverAddress);
+		
+		//Send the message to the device
+		RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+		device.writeMessage(message.getByteMessage());
 	}
 }

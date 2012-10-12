@@ -8,6 +8,8 @@ public final class MessageIntent {
 	public final static String INCOMING_SLAVE = "ca.spencerelliott.scatterfi.intent.incoming_slave";
 	/** Sent to a master/slave to notify them of an incoming connection from a device to become a new master/slave (<code>next</code>) */
 	public final static String INCOMING_MASTER_SLAVE = "ca.spencerelliott.scatterfi.intent.incoming_ms";
+	/** Sent to the server when a new slave or master/slave has successfully connected to its destination */
+	public final static String NEW_DEVICE_CONNECTED = "ca.spencerelliott.scatterfi.intent.new_device";
 	
 	//---- Disconnection intents ----
 	
@@ -25,4 +27,6 @@ public final class MessageIntent {
 	
 	/** Sent from one device to another to get information such as the users name */
 	public final static String DISCOVERY = "ca.spencerelliott.scatterfi.intent.discovery";
+	/** Sent from the server to set the server MAC address for the device */
+	public final static String SERVER_MAC = "ca.spencerelliott.scatterfi.intent.server_mac";
 }
