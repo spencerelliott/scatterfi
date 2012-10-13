@@ -42,12 +42,12 @@ public class RoutedMessage {
 		bBuffer.put(message[7]);
 		
 		id = bBuffer.getLong(0);
-		fromAddress = new byte[] { message[4], message[5], message[6], message[7], message[8], message[9] };
-		toAddress = new byte[] { message[10], message[11], message[12], message[13], message[14], message[15] };
+		fromAddress = new byte[] { message[8], message[9], message[10], message[11], message[12], message[13] };
+		toAddress = new byte[] { message[14], message[15], message[16], message[17], message[18], message[19] };
 		
 		StringBuilder builder = new StringBuilder();
 		
-		for(int i = 16; i < message.length-EOM.length; i++) {
+		for(int i = 20; i < message.length-EOM.length; i++) {
 			builder.append((char)message[i]);
 		}
 		
