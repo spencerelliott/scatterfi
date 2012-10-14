@@ -51,7 +51,7 @@ public class RoutedMessage {
 			builder.append((char)message[i]);
 		}
 		
-		Log.i("Scatterfi", "Decoded message: id: " + id + "to: " + convertByteArrayToAddress(toAddress) + " from: " + convertByteArrayToAddress(fromAddress) + " intent: " + builder.toString());
+		Log.i("Scatterfi", "Decoded message: id: " + id + ", to: " + convertByteArrayToAddress(toAddress) + ", from: " + convertByteArrayToAddress(fromAddress) + ", intent: " + builder.toString());
 		
 		try {
 			this.message = Intent.parseUri(builder.toString(), Intent.URI_INTENT_SCHEME);

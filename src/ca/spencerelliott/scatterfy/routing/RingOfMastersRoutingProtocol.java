@@ -37,6 +37,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	private String serverAddress = null;
 	private boolean connected = false;
 	
+	private LinkedHashMap<String,BluetoothSocketDevice> allDevices = new LinkedHashMap<String,BluetoothSocketDevice>();
+	
 	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
 	
 	private ArrayList<Long> sendIds = new ArrayList<Long>();
@@ -127,6 +129,9 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 
 	@Override
 	public void newClient(BluetoothSocketDevice device) {
+		//Add the device to the full list of devices
+		allDevices.put(device.getAddress(), device);
+		
 		if(incomingMasterSlave != null && incomingMasterSlave.equals(device.getAddress())) {
 			incomingMasterSlave = null;
 			
@@ -136,7 +141,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			//Notify the server that the device connected successfully
 			Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
 			intent.putExtra("mac", device.getAddress());
-			intent.putExtra("type", DeviceType.MASTER_SLAVE);
+			intent.putExtra("type", DeviceType.MASTER_SLAVE.ordinal());
 			
 			sendMessage(serverAddress, intent);
 			
@@ -152,7 +157,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			//Notify the server that the device connected successfully
 			Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
 			intent.putExtra("mac", device.getAddress());
-			intent.putExtra("type", DeviceType.SLAVE);
+			intent.putExtra("type", DeviceType.SLAVE.ordinal());
 			
 			sendMessage(serverAddress, intent);
 
@@ -180,12 +185,21 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	@Override
 	public void lostConnection(BluetoothSocketDevice device) {
 		Log.i("Scatterfi", device.getAddress() + " lost connection");
-		//connected = false;
+		
+		BluetoothSocketDevice d = allDevices.get(device.getAddress());
+		
+		if(d != null) {
+			d.cleanup();
+		}
+		
+		allDevices.remove(device.getAddress());
+
 	}
 	
 	@Override
 	public void destroyAndCleanUp() {
 		thread.stopListening();
+		clearAllConnections();
 	}
 	
 	@Override
@@ -194,6 +208,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		
 		//Initialize the network map if the new type is a server
 		if(type == DeviceType.SERVER) {
+			serverAddress = BluetoothSettings.MY_BT_ADDR;
 			networkMap = new LinkedHashMap<String,ArrayList<String>>();
 		}
 	}
@@ -265,6 +280,11 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		
 		//Create a new list of clients
 		clients = new ArrayList<BluetoothSocketDevice>();
+		
+		//Clean up all devices
+		for(String s : allDevices.keySet()) {
+			allDevices.get(s).cleanup();
+		}
 	}
 	
 	private void processIntent(RoutedMessage message) {
@@ -278,7 +298,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Retrieve the MAC address to connect to and the new device type
 			String mac = extras.getString("mac");
-			type = (DeviceType)extras.get("type");
+			type = DeviceType.values()[extras.getInt("type")];
 			
 			Log.i("Scatterfi", "Attempting to connect to " + mac + " [" + intent.getAction() + "]");
 			
@@ -294,6 +314,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				//If this device is a slave, set it up to forward its messages to the master/slave (d)
 				if(type == DeviceType.SLAVE) {
 					next = d;
+					allDevices.put(device.getAddress(), d);
 				} else {
 					newClient(d);
 				}
@@ -331,7 +352,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			serverAddress = intent.getExtras().getString("mac");
 		} else if(intent.getAction().equals(MessageIntent.NEW_DEVICE_CONNECTED) && type == DeviceType.SERVER) {
-			DeviceType connectionType = (DeviceType)intent.getExtras().get("type");
+			DeviceType connectionType = DeviceType.values()[intent.getExtras().getInt("type")];
 			
 			Log.i("Scatterfi", "New " + connectionType.name() + " connected" + " [" + intent.getAction() + "]");
 			
@@ -364,13 +385,21 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			//Send the loopback message
 			sendMessage(BluetoothSettings.MY_BT_ADDR, intent);
 			
-			//Create the intent to send to the device to tell it to connect to the server again
-			intent = new Intent(MessageIntent.CONNECT);
+			//Create the intent to send to the device to tell it who the server is
+			intent = new Intent(MessageIntent.SERVER_MAC);
 			intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
-			intent.putExtra("type", type);
 			
 			//Send the message to the new device
 			RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+			device.writeMessage(message.getByteMessage());
+			
+			//Create the intent to send to the device to tell it to connect to the server again
+			intent = new Intent(MessageIntent.CONNECT);
+			intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
+			intent.putExtra("type", DeviceType.MASTER_SLAVE.ordinal());
+			
+			//Send the message to the new device
+			message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
 			device.writeMessage(message.getByteMessage());
 			return;
 		}
@@ -394,11 +423,19 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				
 				sendMessage(s, intent);
 				
+				//Create the intent to send to the device to tell it who the server is
+				intent = new Intent(MessageIntent.SERVER_MAC);
+				intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
+				
+				//Send the message to the new device
+				RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+				device.writeMessage(message.getByteMessage());
+				
 				intent = new Intent(MessageIntent.CONNECT);
 				intent.putExtra("mac", s);
-				intent.putExtra("type", DeviceType.SLAVE);
+				intent.putExtra("type", DeviceType.SLAVE.ordinal());
 				
-				RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+				message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
 				device.writeMessage(message.getByteMessage());
 				
 				return;
@@ -412,12 +449,20 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		
 		sendMessage(lastNode, intent);
 		
+		//Create the intent to send to the device to tell it who the server is
+		intent = new Intent(MessageIntent.SERVER_MAC);
+		intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
+		
+		//Send the message to the new device
+		RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+		device.writeMessage(message.getByteMessage());
+		
 		//Create the intent to tell the new device to connect to the last node
 		intent = new Intent(MessageIntent.CONNECT);
 		intent.putExtra("mac", lastNode);
-		intent.putExtra("type", DeviceType.MASTER_SLAVE);
+		intent.putExtra("type", DeviceType.MASTER_SLAVE.ordinal());
 		
-		RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
+		message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
 		device.writeMessage(message.getByteMessage());
 	}
 	
@@ -429,6 +474,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			//Create the intent to tell the device to connect back to the server
 			Intent intent = new Intent(MessageIntent.CONNECT);
 			intent.putExtra("mac", serverAddress);
+			intent.putExtra("type", DeviceType.SLAVE.ordinal());
 			
 			//Send the message to the device
 			RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
