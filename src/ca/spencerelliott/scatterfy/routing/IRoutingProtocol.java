@@ -20,9 +20,10 @@ public interface IRoutingProtocol {
 	
 	/**
 	 * Called when a new client is trying to connect to the device
-	 * @param mac The MAC address of the new client
+	 * @param device The device that was connected
+	 * @param incoming Determines whether this connection was made by the device or it was an incoming connection
 	 */
-	public void newClient(BluetoothSocketDevice device);
+	public void newClient(BluetoothSocketDevice device, boolean incoming);
 	
 	/**
 	 * Called when a client has disconnected from the client

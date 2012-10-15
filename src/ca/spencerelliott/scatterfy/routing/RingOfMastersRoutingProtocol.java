@@ -35,7 +35,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	private String incomingMasterSlave = "";
 	
 	private String serverAddress = null;
-	private boolean connected = false;
+	private boolean ignoreOnce = false;
+	//private boolean connected = false;
 	
 	private LinkedHashMap<String,BluetoothSocketDevice> allDevices = new LinkedHashMap<String,BluetoothSocketDevice>();
 	
@@ -128,53 +129,54 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	}
 
 	@Override
-	public void newClient(BluetoothSocketDevice device) {
+	public void newClient(BluetoothSocketDevice device, boolean incoming) {
 		//Add the device to the full list of devices
 		allDevices.put(device.getAddress(), device);
 		
-		if(incomingMasterSlave != null && incomingMasterSlave.equals(device.getAddress())) {
-			incomingMasterSlave = null;
+		//Only deal with rerouting and such if it's an incoming connection
+		if(incoming) {
+			if(incomingMasterSlave != null && incomingMasterSlave.equals(device.getAddress())) {
+				incomingMasterSlave = null;
+				
+				//Set the device as the next node
+				next = device;
+				
+				//Notify the server that the device connected successfully
+				Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
+				intent.putExtra("mac", device.getAddress());
+				intent.putExtra("type", DeviceType.MASTER_SLAVE.ordinal());
+				
+				sendMessage(serverAddress, intent);
+				
+				return;
+			}
 			
-			//Set the device as the next node
-			next = device;
+			if(incomingClients.contains(device.getAddress())) {
+				incomingClients.remove(device.getAddress());
+				
+				//Add the device to the set of clients
+				clients.add(device);
+				
+				//Notify the server that the device connected successfully
+				Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
+				intent.putExtra("mac", device.getAddress());
+				intent.putExtra("type", DeviceType.SLAVE.ordinal());
+				
+				sendMessage(serverAddress, intent);
+	
+				return;
+			}
 			
-			//Notify the server that the device connected successfully
-			Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
-			intent.putExtra("mac", device.getAddress());
-			intent.putExtra("type", DeviceType.MASTER_SLAVE.ordinal());
-			
-			sendMessage(serverAddress, intent);
-			
-			return;
+			switch(type) {
+				case SERVER:
+					serverConnect(device);
+					break;
+				case MASTER_SLAVE:
+				case SLAVE:
+					clientConnect(device);
+					break;
+			}
 		}
-		
-		if(incomingClients.contains(device.getAddress())) {
-			incomingClients.remove(device.getAddress());
-			
-			//Add the device to the set of clients
-			clients.add(device);
-			
-			//Notify the server that the device connected successfully
-			Intent intent = new Intent(MessageIntent.NEW_DEVICE_CONNECTED);
-			intent.putExtra("mac", device.getAddress());
-			intent.putExtra("type", DeviceType.SLAVE.ordinal());
-			
-			sendMessage(serverAddress, intent);
-
-			return;
-		}
-		
-		switch(type) {
-			case SERVER:
-				serverConnect(device);
-				break;
-			case MASTER_SLAVE:
-			case SLAVE:
-				clientConnect(device);
-				break;
-		}
-		
-		connected = true;
 	}
 
 	@Override
@@ -186,13 +188,19 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	public void lostConnection(BluetoothSocketDevice device) {
 		Log.i("Scatterfi", device.getAddress() + " lost connection");
 		
-		BluetoothSocketDevice d = allDevices.get(device.getAddress());
-		
-		if(d != null) {
-			d.cleanup();
+		if(!ignoreOnce) {
+			BluetoothSocketDevice d = allDevices.get(device.getAddress());
+			
+			if(d != null) {
+				d.cleanup();
+			}
+			
+			allDevices.remove(device.getAddress());
+			
+			Log.i("Scatterfi", "All device count: " + allDevices.size());
+		} else {
+			ignoreOnce = false;
 		}
-		
-		allDevices.remove(device.getAddress());
 
 	}
 	
@@ -229,7 +237,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Create the Bluetooth listen server using the Scatterfi UUID
 			try {
-				serverSock = mBluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord("Scatterfy server", BluetoothSettings.BT_UUID);
+				serverSock = mBluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord("Scatterfi server", BluetoothSettings.BT_UUID);
 			} catch (IOException e) {
 				Log.e("Scatterfi", e.getMessage());
 				return;
@@ -250,7 +258,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 						
 						//Pass it to the protocol to handle
 						if(protocol != null) {
-							protocol.newClient(newDevice);
+							protocol.newClient(newDevice, true);
 						}
 					}
 				} catch(IOException e) {
@@ -300,6 +308,12 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			String mac = extras.getString("mac");
 			type = DeviceType.values()[extras.getInt("type")];
 			
+			//When losing connection to the server and reconnecting, don't panic
+			if(mac.equals(serverAddress)) {
+				ignoreOnce = true;
+			}
+			
+			
 			Log.i("Scatterfi", "Attempting to connect to " + mac + " [" + intent.getAction() + "]");
 			
 			try {
@@ -316,7 +330,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 					next = d;
 					allDevices.put(device.getAddress(), d);
 				} else {
-					newClient(d);
+					newClient(d, false);
 				}
 			} catch(IOException e) { 
 				Log.i("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
@@ -467,19 +481,6 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	}
 	
 	private void clientConnect(BluetoothSocketDevice device) {
-		//Redirect the device back to the server
-		if(connected) {
-			Log.i("Scatterfi", "Sending " + device.getAddress() + " back to server");
-		
-			//Create the intent to tell the device to connect back to the server
-			Intent intent = new Intent(MessageIntent.CONNECT);
-			intent.putExtra("mac", serverAddress);
-			intent.putExtra("type", DeviceType.SLAVE.ordinal());
-			
-			//Send the message to the device
-			RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
-			device.writeMessage(message.getByteMessage());
-		}
-		
+				
 	}
 }
