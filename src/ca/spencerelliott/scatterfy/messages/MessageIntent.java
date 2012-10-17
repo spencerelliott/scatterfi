@@ -8,6 +8,8 @@ public final class MessageIntent {
 	public final static String INCOMING_SLAVE = "ca.spencerelliott.scatterfi.intent.incoming_slave";
 	/** Sent to a master/slave to notify them of an incoming connection from a device to become a new master/slave (<code>next</code>) */
 	public final static String INCOMING_MASTER_SLAVE = "ca.spencerelliott.scatterfi.intent.incoming_ms";
+	/** Sent to the server to ignore the connection from a device and just leave the connection open */
+	public final static String INCOMING_CONNECTION_IGNORE = "ca.spencerelliott.scatterfi.intent.incoming_ignore";
 	/** Sent to the server when a new slave or master/slave has successfully connected to its destination */
 	public final static String NEW_DEVICE_CONNECTED = "ca.spencerelliott.scatterfi.intent.new_device";
 	

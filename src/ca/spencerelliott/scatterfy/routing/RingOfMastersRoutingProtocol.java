@@ -2,7 +2,6 @@ package ca.spencerelliott.scatterfy.routing;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
@@ -39,6 +38,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	//private boolean connected = false;
 	
 	private LinkedHashMap<String,BluetoothSocketDevice> allDevices = new LinkedHashMap<String,BluetoothSocketDevice>();
+	private ArrayList<String> ignoreList = new ArrayList<String>();
 	
 	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
 	
@@ -133,6 +133,14 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		//Add the device to the full list of devices
 		allDevices.put(device.getAddress(), device);
 		
+		//Ignore the incoming connection and just accept it
+		if(ignoreList.contains(device.getAddress())) {
+			Log.i("Scatterfi", "Ignoring connection from " + device.getAddress());
+			
+			ignoreList.remove(device.getAddress());
+			return;
+		}
+		
 		//Only deal with rerouting and such if it's an incoming connection
 		if(incoming) {
 			if(incomingMasterSlave != null && incomingMasterSlave.equals(device.getAddress())) {
@@ -172,9 +180,15 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 					serverConnect(device);
 					break;
 				case MASTER_SLAVE:
+					masterConnect(device);
+					break;
 				case SLAVE:
 					clientConnect(device);
 					break;
+			}
+		} else {
+			if(type == DeviceType.MASTER_SLAVE) {
+				masterConnect(device);
 			}
 		}
 	}
@@ -298,21 +312,21 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	private void processIntent(RoutedMessage message) {
 		Intent intent = message.getIntent();
 		
-		if(intent.getAction().equals(MessageIntent.CONNECT)) {
-			clearAllConnections();
-			
+		if(intent.getAction().equals(MessageIntent.CONNECT)) {			
 			//Get the extras from the sent intent
 			Bundle extras = intent.getExtras();
 			
 			//Retrieve the MAC address to connect to and the new device type
 			String mac = extras.getString("mac");
-			type = DeviceType.values()[extras.getInt("type")];
+			type = DeviceType.values()[extras.getInt("type")];		
+			
+			//Clear all connections from the device
+			clearAllConnections();
 			
 			//When losing connection to the server and reconnecting, don't panic
 			if(mac.equals(serverAddress)) {
 				ignoreOnce = true;
 			}
-			
 			
 			Log.i("Scatterfi", "Attempting to connect to " + mac + " [" + intent.getAction() + "]");
 			
@@ -353,6 +367,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Set the next master/slave MAC address
 			incomingMasterSlave = mac;
+		} else if(intent.getAction().equals(MessageIntent.INCOMING_CONNECTION_IGNORE) && type == DeviceType.SERVER) {
+			ignoreList.add(intent.getExtras().getString("mac"));
 		} else if(intent.getAction().equals(MessageIntent.CHAT_MESSAGE)) {
 			Log.i("Scatterfi", "Chat message received" + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.NOTE_MESSAGE)) {
@@ -471,6 +487,14 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
 		device.writeMessage(message.getByteMessage());
 		
+		//Tell the server to ignore the next incoming connection from this device as it will
+		//connect to the server as it's next node
+		intent = new Intent(MessageIntent.INCOMING_CONNECTION_IGNORE);
+		intent.putExtra("mac", device.getAddress());
+		
+		//Send the loopback message
+		sendMessage(BluetoothSettings.MY_BT_ADDR, intent);
+		
 		//Create the intent to tell the new device to connect to the last node
 		intent = new Intent(MessageIntent.CONNECT);
 		intent.putExtra("mac", lastNode);
@@ -482,5 +506,35 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	
 	private void clientConnect(BluetoothSocketDevice device) {
 				
+	}
+	
+	private void masterConnect(BluetoothSocketDevice newDevice) {
+		if(newDevice.getAddress().equals(serverAddress)) {
+			Log.i("Scatterfi", "Server already connected. Adding as next device");
+			
+			next = newDevice;
+			return;
+		}
+		
+		//Connect to the server to be the next node
+		try {
+			Log.i("Scatterfi", "Connecting to server as next device");
+			
+			//Connect to the device
+			BluetoothDevice device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(serverAddress);
+			BluetoothSocket socket = device.createInsecureRfcommSocketToServiceRecord(BluetoothSettings.BT_UUID);
+			socket.connect();
+			
+			BluetoothSocketDevice d = new BluetoothSocketDevice(device, socket);
+			d.setRoutingProtocol(this);
+			
+			//Add the server to all devices
+			allDevices.put(d.getAddress(), d);
+			
+			//Set the next node to be the server
+			next = d;
+		} catch(IOException e) { 
+			Log.i("Scatterfi", "Could not connect to server");
+		}
 	}
 }

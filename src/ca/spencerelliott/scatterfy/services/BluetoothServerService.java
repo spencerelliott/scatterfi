@@ -76,7 +76,7 @@ public class BluetoothServerService extends Service {
 				BluetoothSocketDevice d = new BluetoothSocketDevice(device, socket);
 				d.setRoutingProtocol(protocol);
 				
-				protocol.newClient(d, true);
+				protocol.newClient(d, false);
 			} catch (IOException e) {
 				return false;
 			}
