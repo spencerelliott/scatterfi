@@ -339,12 +339,13 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				BluetoothSocketDevice d = new BluetoothSocketDevice(device, socket);
 				d.setRoutingProtocol(this);
 				
+				allDevices.put(device.getAddress(), d);
+				
 				//If this device is a slave, set it up to forward its messages to the master/slave (d)
 				if(type == DeviceType.SLAVE) {
 					next = d;
-					allDevices.put(device.getAddress(), d);
-				} else {
-					newClient(d, false);
+				} else if(type == DeviceType.MASTER_SLAVE) {
+					masterConnect(d);
 				}
 			} catch(IOException e) { 
 				Log.i("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
@@ -509,6 +510,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	}
 	
 	private void masterConnect(BluetoothSocketDevice newDevice) {
+		if(serverAddress == null) return;
+		
 		if(newDevice.getAddress().equals(serverAddress)) {
 			Log.i("Scatterfi", "Server already connected. Adding as next device");
 			
