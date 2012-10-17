@@ -175,20 +175,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				return;
 			}
 			
-			switch(type) {
-				case SERVER:
-					serverConnect(device);
-					break;
-				case MASTER_SLAVE:
-					masterConnect(device);
-					break;
-				case SLAVE:
-					clientConnect(device);
-					break;
-			}
-		} else {
-			if(type == DeviceType.MASTER_SLAVE) {
-				masterConnect(device);
+			if(type == DeviceType.SERVER) {
+				serverConnect(device);
 			}
 		}
 	}
@@ -348,7 +336,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 					masterConnect(d);
 				}
 			} catch(IOException e) { 
-				Log.i("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
+				Log.e("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
 			}
 		} else if(intent.getAction().equals(MessageIntent.INCOMING_SLAVE) && type == DeviceType.MASTER_SLAVE) {
 			//Get the extras from the intent and retrieve the incoming MAC address
