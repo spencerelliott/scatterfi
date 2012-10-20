@@ -34,7 +34,6 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	
 	private String serverAddress = null;
 	private boolean ignoreOnce = false;
-	//private boolean connected = false;
 	
 	private LinkedHashMap<String,BluetoothSocketDevice> allDevices = new LinkedHashMap<String,BluetoothSocketDevice>();
 	private ArrayList<String> ignoreList = new ArrayList<String>();
@@ -418,10 +417,6 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		
 		//Assign this device as a new master/slave
 		ServerManager.assignAsMasterSlave(this, device, lastNode);
-	}
-	
-	private void clientConnect(BluetoothSocketDevice device) {
-				
 	}
 	
 	private void masterConnect(BluetoothSocketDevice newDevice) {
