@@ -1,5 +1,6 @@
 package ca.spencerelliott.scatterfy.routing;
 
+import ca.spencerelliott.scatterfy.messages.RoutedMessage;
 import ca.spencerelliott.scatterfy.services.BluetoothSocketDevice;
 import ca.spencerelliott.scatterfy.services.DeviceType;
 import android.content.Intent;
@@ -11,6 +12,12 @@ public interface IRoutingProtocol {
 	 * @param message The intent to execute on the remote device
 	 */
 	public void sendMessage(String to, Intent message);
+	
+	/**
+	 * Sends a message as is. Used mostly for resending or forwarding messages.
+	 * @param message The message to relay
+	 */
+	public void sendMessage(RoutedMessage message);
 	
 	/**
 	 * Called when the client receives a message

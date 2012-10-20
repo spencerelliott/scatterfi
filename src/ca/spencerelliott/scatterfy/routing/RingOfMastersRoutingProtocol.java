@@ -3,8 +3,8 @@ package ca.spencerelliott.scatterfy.routing;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.Set;
 
+import ca.spencerelliott.scatterfy.managers.ServerManager;
 import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.messages.RoutedMessage;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
@@ -15,20 +15,19 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 
-public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
-	/** The maximum amount of devices that should be allocated to each master/slave node */
-	public static final int MAX_DEVICES_PER_MS = 2;
-	
+public class RingOfMastersRoutingProtocol implements IRoutingProtocol {	
 	private DeviceType type = DeviceType.SLAVE;
 	
 	private BluetoothSocketDevice next = null;
 	
 	protected LinkedHashMap<String,ArrayList<String>> networkMap = null;
+	protected ArrayList<String> disconnectedSlaves = null;
 	
 	private ArrayList<String> incomingClients = new ArrayList<String>();
 	private String incomingMasterSlave = "";
@@ -58,8 +57,13 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	@Override
 	public synchronized void sendMessage(String to, Intent message) {		
 		byte[] toBytes = RoutedMessage.convertAddressToByteArray(to);
-		
 		RoutedMessage routed = new RoutedMessage(toBytes, message);
+		
+		sendMessage(routed);		
+	}
+	
+	public void sendMessage(RoutedMessage routed) {
+		String to = RoutedMessage.convertByteArrayToAddress(routed.getToAddress());
 		
 		//Loopback message received
 		if(to.equals(BluetoothSettings.MY_BT_ADDR)) {
@@ -97,7 +101,6 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		if(next != null) {
 			next.writeMessage(routed.getByteMessage());
 		}
-		
 	}
 
 	@Override
@@ -120,10 +123,10 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				
 				//Resend this message if it was a broadcast
 				if(address.equals(BluetoothSettings.BROADCAST_MAC)) {
-					sendMessage(BluetoothSettings.BROADCAST_MAC, received.getIntent());
+					sendMessage(received);
 				}
 			} else {
-				sendMessage(address, received.getIntent());
+				sendMessage(received);
 			}
 		}
 	}
@@ -175,6 +178,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				return;
 			}
 			
+			//Redirect the client to the appropriate address
 			if(type == DeviceType.SERVER) {
 				serverConnect(device);
 			}
@@ -220,6 +224,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		if(type == DeviceType.SERVER) {
 			serverAddress = BluetoothSettings.MY_BT_ADDR;
 			networkMap = new LinkedHashMap<String,ArrayList<String>>();
+			disconnectedSlaves = new ArrayList<String>();
 		}
 	}
 	
@@ -386,111 +391,33 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 					break;
 			}
 		} else {
-			//Let Android handle the intent otherwise
-			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-			context.startActivity(intent);
+			try {
+				//Let Android handle the intent otherwise
+				intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				context.startActivity(intent);
+			} catch(ActivityNotFoundException e) {
+				Log.e("Scatterfi", "Could not launch intent: " + e.getMessage());
+			}
 		}
 	}
 	
 	private void serverConnect(BluetoothSocketDevice device) {		
 		//If this is the first node in the network
 		if(next == null) {			
-			Log.i("Scatterfi", "First master/slave connected to network");
-			
-			//Create the intent to send a loopback to say that this device will become a master/slave
-			Intent intent = new Intent(MessageIntent.INCOMING_MASTER_SLAVE);
-			intent.putExtra("mac", device.getAddress());
-			
-			//Send the loopback message
-			sendMessage(BluetoothSettings.MY_BT_ADDR, intent);
-			
-			//Create the intent to send to the device to tell it who the server is
-			intent = new Intent(MessageIntent.SERVER_MAC);
-			intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
-			
-			//Send the message to the new device
-			RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
-			device.writeMessage(message.getByteMessage());
-			
-			//Create the intent to send to the device to tell it to connect to the server again
-			intent = new Intent(MessageIntent.CONNECT);
-			intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
-			intent.putExtra("type", DeviceType.MASTER_SLAVE.ordinal());
-			
-			//Send the message to the new device
-			message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
-			device.writeMessage(message.getByteMessage());
+			ServerManager.assignFirstMasterSlave(this, device);
+		}
+		
+		//Attempt to assign the new device to an existing master/slave
+		if(ServerManager.assignToExistingNode(this, device, networkMap)) {
 			return;
 		}
 		
-		Set<String> msNodes = networkMap.keySet();
-		String lastNode = null;
+		//Get the last master/slave node in the network map
+		ArrayList<String> keys = new ArrayList<String>(networkMap.keySet());
+		String lastNode = keys.get(keys.size()-1);
 		
-		//Check the amount of nodes on each master/slave in the map
-		for(String s : msNodes) {
-			lastNode = s;
-			
-			ArrayList<String> msList = networkMap.get(s);
-			
-			//If this node has more room for clients, notify the master/slave of an incoming connection
-			//and tell the new client to connect to the master/slave
-			if(msList.size() < MAX_DEVICES_PER_MS) {
-				Log.i("Scatterfi", "Assigning " + device.getAddress() + " to " + s);
-				
-				Intent intent = new Intent(MessageIntent.INCOMING_SLAVE);
-				intent.putExtra("mac", device.getAddress());
-				
-				sendMessage(s, intent);
-				
-				//Create the intent to send to the device to tell it who the server is
-				intent = new Intent(MessageIntent.SERVER_MAC);
-				intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
-				
-				//Send the message to the new device
-				RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
-				device.writeMessage(message.getByteMessage());
-				
-				intent = new Intent(MessageIntent.CONNECT);
-				intent.putExtra("mac", s);
-				intent.putExtra("type", DeviceType.SLAVE.ordinal());
-				
-				message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
-				device.writeMessage(message.getByteMessage());
-				
-				return;
-			}
-		}
-		
-		//No room on the network, add this node as a master/slave. Send the last added node
-		//a message notifying it of a new incoming master/slave
-		Intent intent = new Intent(MessageIntent.INCOMING_MASTER_SLAVE);
-		intent.putExtra("mac", device.getAddress());
-		
-		sendMessage(lastNode, intent);
-		
-		//Create the intent to send to the device to tell it who the server is
-		intent = new Intent(MessageIntent.SERVER_MAC);
-		intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
-		
-		//Send the message to the new device
-		RoutedMessage message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
-		device.writeMessage(message.getByteMessage());
-		
-		//Tell the server to ignore the next incoming connection from this device as it will
-		//connect to the server as it's next node
-		intent = new Intent(MessageIntent.INCOMING_CONNECTION_IGNORE);
-		intent.putExtra("mac", device.getAddress());
-		
-		//Send the loopback message
-		sendMessage(BluetoothSettings.MY_BT_ADDR, intent);
-		
-		//Create the intent to tell the new device to connect to the last node
-		intent = new Intent(MessageIntent.CONNECT);
-		intent.putExtra("mac", lastNode);
-		intent.putExtra("type", DeviceType.MASTER_SLAVE.ordinal());
-		
-		message = new RoutedMessage(RoutedMessage.convertAddressToByteArray(device.getAddress()), intent);
-		device.writeMessage(message.getByteMessage());
+		//Assign this device as a new master/slave
+		ServerManager.assignAsMasterSlave(this, device, lastNode);
 	}
 	
 	private void clientConnect(BluetoothSocketDevice device) {
@@ -498,6 +425,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	}
 	
 	private void masterConnect(BluetoothSocketDevice newDevice) {
+		//Something is missing, do not attempt to connect
 		if(serverAddress == null) return;
 		
 		if(newDevice.getAddress().equals(serverAddress)) {
