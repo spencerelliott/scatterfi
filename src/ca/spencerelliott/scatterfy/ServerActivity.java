@@ -1,14 +1,20 @@
 package ca.spencerelliott.scatterfy;
 
+import java.nio.charset.Charset;
+
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.IBluetoothServerService;
 import ca.spencerelliott.scatterfy.services.ServerService;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.net.Uri;
+import android.nfc.NdefMessage;
+import android.nfc.NdefRecord;
+import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -24,7 +30,11 @@ public class ServerActivity extends Activity {
 	private TextView status = null;
 	
 	private IBluetoothServerService service = null;
+	private NfcAdapter nfcAdapter = null;
 	
+	private NdefMessage nfcMessage = null;
+	
+	@SuppressLint("NewApi")
 	@Override
 	public void onCreate(Bundle savedInstance) {
 		super.onCreate(savedInstance);
@@ -54,6 +64,43 @@ public class ServerActivity extends Activity {
 				}
 			}
 		});
+		
+		//Set up NFC, if available
+		nfcAdapter = NfcAdapter.getDefaultAdapter(this);
+		
+		if(nfcAdapter != null) {
+			//Create the intent to send over NFC
+			String uri = "scatterfi://client?mac=" + BluetoothSettings.MY_BT_ADDR;
+			
+			NdefRecord uriRecord = new NdefRecord(
+				    NdefRecord.TNF_ABSOLUTE_URI ,
+				    uri.getBytes(Charset.forName("US-ASCII")),
+				    new byte[0], new byte[0]);
+			
+			//Create the message to be sent
+			nfcMessage = new NdefMessage(new NdefRecord[] { uriRecord });
+		}
+	}
+	
+	@SuppressWarnings("deprecation")
+	@Override
+	public void onResume() {
+		if(nfcAdapter != null && nfcMessage != null) {
+			//Set the NFC adapter to use our message
+			nfcAdapter.enableForegroundNdefPush(this, nfcMessage);
+		}
+		
+		super.onResume();
+	}
+	
+	@SuppressWarnings("deprecation")
+	public void onPause() {
+		if(nfcAdapter != null) {
+			//Disable the NFC message from the adapter
+			nfcAdapter.disableForegroundNdefPush(this);
+		}
+		
+		super.onPause();
 	}
 	
 	@Override

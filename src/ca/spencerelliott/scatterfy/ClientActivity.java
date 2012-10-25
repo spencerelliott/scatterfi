@@ -11,6 +11,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.net.Uri;
+import android.nfc.NfcAdapter;
+import android.nfc.Tag;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -29,11 +31,21 @@ public class ClientActivity extends Activity {
 private TextView status = null;
 	
 	private IBluetoothServerService service = null;
+	private String intentConnectionMac = null;
 	
 	@Override
 	public void onCreate(Bundle savedInstance) {
 		super.onCreate(savedInstance);
 		setContentView(R.layout.activity_client);
+		
+		if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
+			Intent intent = getIntent();
+	        
+			Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+			
+			Log.i("Scatterfi", "Received NFC message: " + intent.getDataString() + " [" + tag.describeContents() + "]");
+			intentConnectionMac = intent.getData().getQueryParameter("mac");
+	    }
 		
 		Intent serverService = new Intent(this, ClientService.class);
 		startService(serverService);
@@ -138,13 +150,22 @@ private TextView status = null;
 		public void onServiceConnected(ComponentName arg0, IBinder binder) {
 			ClientActivity.this.runOnUiThread(new Runnable() {
 				@Override
-				public void run() {
+				public void run() {					
 					status.setText("Connected to service (MAC " + BluetoothSettings.MY_BT_ADDR + ")");
 					status.invalidate();
 				}
 			});
 			
 			service = IBluetoothServerService.Stub.asInterface(binder);
+			
+			//Connect to the MAC address passed by the intent
+			if(intentConnectionMac != null) {
+				try {
+					service.registerUser(intentConnectionMac);
+				} catch (RemoteException e) {
+					Log.e("Scatterfi", "Failed to register on NFC connection");
+				}
+			}
 		}
 
 		@Override

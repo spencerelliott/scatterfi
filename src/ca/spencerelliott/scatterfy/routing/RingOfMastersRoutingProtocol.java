@@ -210,7 +210,11 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		} else {
 			ignoreOnce = false;
 		}
-
+		
+		//If the device that was connected was the next node, remove it
+		if(device.getAddress().equals(next.getAddress())) {
+			next = null;
+		}
 	}
 	
 	@Override
@@ -408,6 +412,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		//If this is the first node in the network
 		if(next == null) {			
 			ServerManager.assignFirstMasterSlave(this, device);
+			return;
 		}
 		
 		//Attempt to assign the new device to an existing master/slave

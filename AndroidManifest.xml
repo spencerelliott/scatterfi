@@ -7,6 +7,7 @@
         android:targetSdkVersion="15" android:minSdkVersion="10"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.NFC"/>
 
     <application
         android:icon="@drawable/ic_launcher"
@@ -24,7 +25,13 @@
         <activity android:name=".ServerActivity"></activity>
         <service android:name="ca.spencerelliott.scatterfy.services.ServerService"></service>
         <service android:name="ca.spencerelliott.scatterfy.services.ClientService"></service>
-        <activity android:name=".ClientActivity"></activity>
+        <activity android:name=".ClientActivity">
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:host="client" android:scheme="scatterfi" android:pathPattern=".*"/>
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>
