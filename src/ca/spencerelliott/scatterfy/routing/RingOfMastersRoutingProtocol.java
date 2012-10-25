@@ -21,29 +21,33 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 
-public class RingOfMastersRoutingProtocol implements IRoutingProtocol {	
-	private DeviceType type = DeviceType.SLAVE;
+public class RingOfMastersRoutingProtocol implements IRoutingProtocol {		
+	//---- Master/Slave - Slave specific variables ----
+	private String serverAddress = null;
+	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
+	//-------------------------------------------------
 	
-	private BluetoothSocketDevice next = null;
-	
+	//---- Server specific variables ----
 	protected LinkedHashMap<String,ArrayList<String>> networkMap = null;
 	protected ArrayList<String> disconnectedSlaves = null;
+	//-----------------------------------
+	
+	//---- Client/Server variables ----
+	private BluetoothSocketDevice next = null;
+	private DeviceType type = DeviceType.SLAVE;
 	
 	private ArrayList<String> incomingClients = new ArrayList<String>();
 	private String incomingMasterSlave = "";
 	
-	private String serverAddress = null;
 	private boolean ignoreOnce = false;
 	
 	private LinkedHashMap<String,BluetoothSocketDevice> allDevices = new LinkedHashMap<String,BluetoothSocketDevice>();
 	private ArrayList<String> ignoreList = new ArrayList<String>();
 	
-	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
-	
 	private ArrayList<Long> sendIds = new ArrayList<Long>();
+	//----------------------------------
 	
 	private Context context = null;
-	
 	private BackgroundConnectionThread thread = null;
 	
 	public RingOfMastersRoutingProtocol(Context context) {

@@ -18,6 +18,10 @@ public class ServerManager {
 	/** The maximum amount of devices that should be allocated to each master/slave node */
 	public static final int MAX_DEVICES_PER_MS = 2;
 	
+	/**
+	 * Sends the server address to the device passed in
+	 * @param device The connected device
+	 */
 	private static void sendServerAddress(BluetoothSocketDevice device) {
 		//Create the intent to send to the device to tell it who the server is
 		Intent intent = new Intent(MessageIntent.SERVER_MAC);
@@ -28,6 +32,12 @@ public class ServerManager {
 		device.writeMessage(message.getByteMessage());
 	}
 	
+	/**
+	 * Assigns the passed device as the master/slave to the server
+	 * @param protocol The protocol dealing with this device
+	 * @param device The device that has connected
+	 * @return True if successful
+	 */
 	public static boolean assignFirstMasterSlave(IRoutingProtocol protocol, BluetoothSocketDevice device) {
 		Log.i("Scatterfi", "First master/slave connected to network");
 		
@@ -52,6 +62,13 @@ public class ServerManager {
 		return true;
 	}
 	
+	/**
+	 * Attempts to assign the passed to device to an existing master/slave
+	 * @param protocol The protocol dealing with this device
+	 * @param device The device that has connected
+	 * @param networkMap The state of the current network map
+	 * @return True if assigned to an existing node, false otherwise
+	 */
 	public static boolean assignToExistingNode(IRoutingProtocol protocol, BluetoothSocketDevice device, LinkedHashMap<String,ArrayList<String>> networkMap) {
 		Set<String> msNodes = networkMap.keySet();
 		
@@ -85,6 +102,13 @@ public class ServerManager {
 		return false;
 	}
 	
+	/**
+	 * Assigns the device passed in as a new master/slave at the end of the ring
+	 * @param protocol The protocol dealing with this device
+	 * @param device The connected device
+	 * @param connectTo Which device the connected device should connect to
+	 * @return True if successful
+	 */
 	public static boolean assignAsMasterSlave(IRoutingProtocol protocol, BluetoothSocketDevice device, String connectTo) {
 		//No room on the network, add this node as a master/slave. Send the last added node
 		//a message notifying it of a new incoming master/slave
