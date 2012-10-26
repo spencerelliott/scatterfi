@@ -5,6 +5,7 @@ import ca.spencerelliott.scatterfy.services.ClientService;
 import ca.spencerelliott.scatterfy.services.IBluetoothServerService;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -13,8 +14,11 @@ import android.content.ServiceConnection;
 import android.net.Uri;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.os.RemoteException;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -32,6 +36,25 @@ private TextView status = null;
 	
 	private IBluetoothServerService service = null;
 	private String intentConnectionMac = null;
+	
+	private ProgressDialog progressDialog = null;
+	
+	private static final int OPEN_CONNECTING_DIALOG = 0;
+	private static final int CLOSE_CONNECTING_DIALOG = 1;
+	
+	private Handler dialogHandler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {
+			switch(msg.what) {
+				case OPEN_CONNECTING_DIALOG:
+					ConnectionThread thread = new ConnectionThread();
+					thread.execute((String)msg.obj);
+					break;
+				case CLOSE_CONNECTING_DIALOG:
+					break;
+			}
+		}
+	};
 	
 	@Override
 	public void onCreate(Bundle savedInstance) {
@@ -114,13 +137,11 @@ private TextView status = null;
 								public void onClick(DialogInterface dialog, int which) {
 									String mac = deviceText.getText().toString();
 									
-									if(service != null) {
-										try {
-											service.registerUser(mac);
-										} catch (RemoteException e) {
-											Log.i("Scatterfi", "Could not register device: " + e.getMessage());
-										}
-									}
+									Message msg = new Message();
+									msg.what = OPEN_CONNECTING_DIALOG;
+									msg.obj = mac;
+									
+									dialogHandler.sendMessage(msg);
 								}
 		        			})
 		        			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -145,6 +166,47 @@ private TextView status = null;
 	    return true;
 	}
 	
+	private class ConnectionThread extends AsyncTask<String, Void, Void> {		
+		@Override
+		protected Void doInBackground(String... params) {
+			ClientActivity.this.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					//Show the progress dialog
+					progressDialog = new ProgressDialog(ClientActivity.this);
+					progressDialog.setIndeterminate(true);
+					progressDialog.setCancelable(false);
+					
+					progressDialog.setMessage(getResources().getText(R.string.connecting));
+					
+					progressDialog.show();
+				}
+			});
+			
+			
+			if(service != null) {
+				try {
+					service.registerUser(params[0]);
+				} catch (RemoteException e) {
+					Log.i("Scatterfi", "Could not register device: " + e.getMessage());
+				}
+			}
+			return null;
+		}
+		
+		protected void onPostExecute(Void result) {
+	         if(progressDialog != null) {
+	        	 ClientActivity.this.runOnUiThread(new Runnable() {
+	 				@Override
+	 				public void run() {
+	 					progressDialog.dismiss();
+	 				}
+	 			});
+	         }
+	     }
+		
+	}
+	
 	private ServiceConnection connection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName arg0, IBinder binder) {
@@ -160,6 +222,12 @@ private TextView status = null;
 			
 			//Connect to the MAC address passed by the intent
 			if(intentConnectionMac != null) {
+				Message msg = new Message();
+				msg.what = OPEN_CONNECTING_DIALOG;
+				msg.obj = intentConnectionMac;
+				
+				dialogHandler.sendMessage(msg);
+				
 				try {
 					service.registerUser(intentConnectionMac);
 				} catch (RemoteException e) {

@@ -79,9 +79,21 @@ public class BluetoothSocketDevice {
 	 */
 	public void cleanup() {
 		try {
+			socket.getInputStream().close();
+		} catch(IOException e1) {
+			Log.e("Scatterfi", "Could not close input stream: " + e1.getMessage());
+		}
+		
+		try {
+			socket.getOutputStream().close();
+		} catch (IOException e1) {
+			Log.e("Scatterfi", "Could not close output stream: " + e1.getMessage());
+		}
+		
+		try {
 			socket.close();
-		} catch(Exception e) {
-			
+		} catch (IOException e1) {
+			Log.e("Scatterfi", "Could not close socket: " + e1.getMessage());
 		}
 	}
 	
@@ -145,6 +157,8 @@ public class BluetoothSocketDevice {
 					routing.receiveMessage(finalArray);
 				} catch (IOException e) {
 					Log.e("Scatterfi", "Lost connection in BluetoothSocketDevice: " + e.getMessage());
+					
+					//cleanup();
 					
 					//Let the routing protocol know that the connection was lost
 					routing.lostConnection(BluetoothSocketDevice.this);

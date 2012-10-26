@@ -9,4 +9,6 @@ interface IBluetoothServerService {
 	boolean registerUser(in String mac);
 	void removeUser(in String mac);
 	void sendMessage(in String address, in Intent intent);
+	List<String> getMasterSlaves();
+	List<String> getSlaves(in String msMac);
 }

@@ -2,7 +2,9 @@ package ca.spencerelliott.scatterfy.routing;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Set;
 
 import ca.spencerelliott.scatterfy.managers.ServerManager;
 import ca.spencerelliott.scatterfy.messages.MessageIntent;
@@ -206,13 +208,43 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			allDevices.remove(device.getAddress());
 			
+			if(type == DeviceType.SERVER) {
+				//Try to remove this as a master/slave from the map
+				ArrayList<String> removed = networkMap.remove(device.getAddress());
+				
+				//If the device wasn't a master/slave, check all slaves
+				if(removed == null) {
+					Set<String> msNodes = networkMap.keySet();
+					boolean foundSlave = false;
+					
+					//Loop through each master/slave
+					for(String s : msNodes) {
+						ArrayList<String> slaves = networkMap.get(s);
+						Iterator<String> iSlaves = slaves.iterator();
+						
+						//Check each slave
+						while(iSlaves.hasNext()) {
+							String is = iSlaves.next();
+							
+							if(is.equals(device.getAddress())) {
+								iSlaves.remove();
+								foundSlave = true;
+								break;
+							}
+						}
+						
+						if(foundSlave) break;
+					}
+				}
+			}
+			
 			Log.i("Scatterfi", "All device count: " + allDevices.size());
 		} else {
 			ignoreOnce = false;
 		}
 		
 		//If the device that was connected was the next node, remove it
-		if(device.getAddress().equals(next.getAddress())) {
+		if(next != null && device.getAddress().equals(next.getAddress())) {
 			next = null;
 		}
 	}
@@ -288,7 +320,7 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		}
 	}
 	
-	private void clearAllConnections() {
+	public void clearAllConnections() {
 		//Disconnect from the next node if it exists
 		if(next != null) {
 			next.cleanup();
@@ -322,6 +354,12 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			//Clear all connections from the device
 			clearAllConnections();
+			
+			try {
+				Thread.sleep(1000);
+			} catch(Exception e) {
+				Log.e("Scatterfi", "Interrupted while waiting: " + e.getMessage());
+			}
 			
 			//When losing connection to the server and reconnecting, don't panic
 			if(mac.equals(serverAddress)) {
@@ -459,5 +497,12 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		} catch(IOException e) { 
 			Log.i("Scatterfi", "Could not connect to server");
 		}
+	}
+
+	@Override
+	public LinkedHashMap<String, ArrayList<String>> getNetworkMap() {
+		if(type != DeviceType.SERVER) return null;
+		
+		return networkMap;
 	}
 }

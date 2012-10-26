@@ -1,14 +1,17 @@
 package ca.spencerelliott.scatterfy;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.IBluetoothServerService;
 import ca.spencerelliott.scatterfy.services.ServerService;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.net.Uri;
@@ -18,12 +21,16 @@ import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 public class ServerActivity extends Activity {
@@ -127,14 +134,63 @@ public class ServerActivity extends Activity {
 	    switch (item.getItemId()) {
 	        case R.id.menu_disconnect:
 	        	stopService(new Intent(this, ServerService.class));
+	        	finish();
+	        	break;
+	        case R.id.menu_network_map:
+	        	displayNetworkMap();
 	        	break;
 	        default:
 	            return super.onOptionsItemSelected(item);
 	    }
 	    
-	    finish();
-	    
 	    return true;
+	}
+	
+	private void displayNetworkMap() {
+		ScrollView scroller = new ScrollView(this);
+		
+		LinearLayout dialogInflated = new LinearLayout(this);
+		dialogInflated.setGravity(LinearLayout.VERTICAL);
+		
+		try {
+			ArrayList<String> msNodes = (ArrayList<String>) service.getMasterSlaves();
+			
+			//Loop through each master/slave
+			for(String s : msNodes) {
+				TextView view = new TextView(this);
+				view.setText(s);
+				
+				//Add the master/slave to the layout
+				dialogInflated.addView(view);
+				
+				ArrayList<String> sNodes = (ArrayList<String>) service.getSlaves(s);
+				
+				//Loop through each client attached to the master/slave
+				for(String is : sNodes) {
+					TextView innerView = new TextView(this);
+					innerView.setText("--- " + is);
+					
+					dialogInflated.addView(innerView);
+				}
+			}
+		} catch (RemoteException e) {
+			Log.e("Scatterfi", "Error getting network map: " + e.getMessage());
+		}
+		
+		scroller.addView(dialogInflated);
+		
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		AlertDialog dialog = builder.setView(scroller)
+			.setTitle(R.string.network_map)
+			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					dialog.dismiss();
+				}
+			})
+			.create();
+		
+		dialog.show();
 	}
 	
 	private ServiceConnection connection = new ServiceConnection() {

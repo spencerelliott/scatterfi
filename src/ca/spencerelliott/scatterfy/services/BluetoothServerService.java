@@ -1,6 +1,8 @@
 package ca.spencerelliott.scatterfy.services;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import ca.spencerelliott.scatterfy.routing.IRoutingProtocol;
@@ -68,6 +70,8 @@ public class BluetoothServerService extends Service {
 		@Override
 		public boolean registerUser(String mac) throws RemoteException {
 			try {
+				((RingOfMastersRoutingProtocol)protocol).clearAllConnections();
+				
 				//Create the remote device
 				BluetoothDevice device = adapter.getRemoteDevice(mac);
 				BluetoothSocket socket = device.createInsecureRfcommSocketToServiceRecord(BluetoothSettings.BT_UUID);
@@ -92,6 +96,20 @@ public class BluetoothServerService extends Service {
 		@Override
 		public List<String> getConnectedClients() throws RemoteException {
 			return null;
+		}
+
+		@Override
+		public List<String> getMasterSlaves() throws RemoteException {
+			LinkedHashMap<String,ArrayList<String>> map = protocol.getNetworkMap();
+			
+			return new ArrayList<String>(map.keySet());
+		}
+
+		@Override
+		public List<String> getSlaves(String msMac) throws RemoteException {
+			LinkedHashMap<String,ArrayList<String>> map = protocol.getNetworkMap();
+			
+			return map.get(msMac);
 		}
 	};
 

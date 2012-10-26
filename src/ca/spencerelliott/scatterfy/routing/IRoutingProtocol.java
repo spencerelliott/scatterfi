@@ -1,5 +1,8 @@
 package ca.spencerelliott.scatterfy.routing;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+
 import ca.spencerelliott.scatterfy.messages.RoutedMessage;
 import ca.spencerelliott.scatterfy.services.BluetoothSocketDevice;
 import ca.spencerelliott.scatterfy.services.DeviceType;
@@ -54,4 +57,10 @@ public interface IRoutingProtocol {
 	 * @param type The <code>DeviceType</code> of the device
 	 */
 	public void setDeviceType(DeviceType type);
+	
+	/**
+	 * Returns the network map for the the routing protocol
+	 * @return The network map
+	 */
+	public LinkedHashMap<String,ArrayList<String>> getNetworkMap();
 }
