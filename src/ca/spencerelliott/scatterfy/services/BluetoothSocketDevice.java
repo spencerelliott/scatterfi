@@ -20,6 +20,8 @@ public class BluetoothSocketDevice {
 	
 	private IRoutingProtocol routing;
 	
+	private boolean voluntaryDisconnect = false;
+	
 	public BluetoothSocketDevice(BluetoothDevice device, BluetoothSocket socket) {
 		this.device = device;
 		this.socket = socket;
@@ -78,6 +80,8 @@ public class BluetoothSocketDevice {
 	 * Closes the socket connected to this Bluetooth device
 	 */
 	public void cleanup() {
+		voluntaryDisconnect = true;
+		
 		try {
 			socket.getInputStream().close();
 		} catch(IOException e1) {
@@ -95,6 +99,14 @@ public class BluetoothSocketDevice {
 		} catch (IOException e1) {
 			Log.e("Scatterfi", "Could not close socket: " + e1.getMessage());
 		}
+	}
+	
+	/**
+	 * Returns whether or not we were expecting to disconnect or it was random
+	 * @return True if voluntary, false otherwise
+	 */
+	public boolean wasVoluntaryDisconnect() {
+		return voluntaryDisconnect;
 	}
 	
 	private class BluetoothMessageReceiverThread extends Thread {

@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 
+import ca.spencerelliott.scatterfy.managers.DisconnectionManager;
 import ca.spencerelliott.scatterfy.managers.ServerManager;
 import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.messages.RoutedMessage;
@@ -17,13 +18,12 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
-import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 
-public class RingOfMastersRoutingProtocol implements IRoutingProtocol {		
+public class RingOfMastersRoutingProtocol extends IRoutingProtocol {		
 	//---- Master/Slave - Slave specific variables ----
 	private String serverAddress = null;
 	private ArrayList<BluetoothSocketDevice> clients = new ArrayList<BluetoothSocketDevice>();
@@ -34,22 +34,19 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	protected ArrayList<String> disconnectedSlaves = null;
 	//-----------------------------------
 	
-	//---- Client/Server variables ----
+	//---- Client/Server variables ----	
 	private BluetoothSocketDevice next = null;
 	private DeviceType type = DeviceType.SLAVE;
 	
 	private ArrayList<String> incomingClients = new ArrayList<String>();
 	private String incomingMasterSlave = "";
 	
-	private boolean ignoreOnce = false;
-	
 	private LinkedHashMap<String,BluetoothSocketDevice> allDevices = new LinkedHashMap<String,BluetoothSocketDevice>();
 	private ArrayList<String> ignoreList = new ArrayList<String>();
 	
 	private ArrayList<Long> sendIds = new ArrayList<Long>();
 	//----------------------------------
-	
-	private Context context = null;
+
 	private BackgroundConnectionThread thread = null;
 	
 	public RingOfMastersRoutingProtocol(Context context) {
@@ -199,7 +196,9 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 	public void lostConnection(BluetoothSocketDevice device) {
 		Log.i("Scatterfi", device.getAddress() + " lost connection");
 		
-		if(!ignoreOnce) {
+		if(!device.wasVoluntaryDisconnect()) {
+			Log.i("Scatterfi", "Involuntary disconnection from " + device.getAddress());
+			
 			BluetoothSocketDevice d = allDevices.get(device.getAddress());
 			
 			if(d != null) {
@@ -208,44 +207,26 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			
 			allDevices.remove(device.getAddress());
 			
+			//Create the intent to send to the server when a connection is lost
+			Intent lostIntent = new Intent(MessageIntent.LOST_CONNECTION);
+			lostIntent.putExtra("mac", device.getAddress());
+			
 			if(type == DeviceType.SERVER) {
-				//Try to remove this as a master/slave from the map
-				ArrayList<String> removed = networkMap.remove(device.getAddress());
-				
-				//If the device wasn't a master/slave, check all slaves
-				if(removed == null) {
-					Set<String> msNodes = networkMap.keySet();
-					boolean foundSlave = false;
-					
-					//Loop through each master/slave
-					for(String s : msNodes) {
-						ArrayList<String> slaves = networkMap.get(s);
-						Iterator<String> iSlaves = slaves.iterator();
-						
-						//Check each slave
-						while(iSlaves.hasNext()) {
-							String is = iSlaves.next();
-							
-							if(is.equals(device.getAddress())) {
-								iSlaves.remove();
-								foundSlave = true;
-								break;
-							}
-						}
-						
-						if(foundSlave) break;
-					}
-				}
+				sendMessage(BluetoothSettings.MY_BT_ADDR, lostIntent);
+			} else if(type == DeviceType.MASTER_SLAVE && next != null && !next.getAddress().equals(device)) {
+				sendMessage(serverAddress, lostIntent);
 			}
 			
 			Log.i("Scatterfi", "All device count: " + allDevices.size());
 		} else {
-			ignoreOnce = false;
+			Log.i("Scatterfi", "Voluntary disconnection from " + device.getAddress());
 		}
 		
 		//If the device that was connected was the next node, remove it
 		if(next != null && device.getAddress().equals(next.getAddress())) {
 			next = null;
+			
+			DisconnectionManager.handleLostConnection(this, type);
 		}
 	}
 	
@@ -341,7 +322,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 		}
 	}
 	
-	private void processIntent(RoutedMessage message) {
+	@Override
+	protected void processIntent(RoutedMessage message) {		
 		Intent intent = message.getIntent();
 		
 		if(intent.getAction().equals(MessageIntent.CONNECT)) {			
@@ -359,11 +341,6 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				Thread.sleep(1000);
 			} catch(Exception e) {
 				Log.e("Scatterfi", "Interrupted while waiting: " + e.getMessage());
-			}
-			
-			//When losing connection to the server and reconnecting, don't panic
-			if(mac.equals(serverAddress)) {
-				ignoreOnce = true;
 			}
 			
 			Log.i("Scatterfi", "Attempting to connect to " + mac + " [" + intent.getAction() + "]");
@@ -385,6 +362,8 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 				} else if(type == DeviceType.MASTER_SLAVE) {
 					masterConnect(d);
 				}
+				
+				notifyUser("Connected to " + mac);
 			} catch(IOException e) { 
 				Log.e("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
 			}
@@ -408,14 +387,6 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 			incomingMasterSlave = mac;
 		} else if(intent.getAction().equals(MessageIntent.INCOMING_CONNECTION_IGNORE) && type == DeviceType.SERVER) {
 			ignoreList.add(intent.getExtras().getString("mac"));
-		} else if(intent.getAction().equals(MessageIntent.CHAT_MESSAGE)) {
-			Log.i("Scatterfi", "Chat message received" + " [" + intent.getAction() + "]");
-		} else if(intent.getAction().equals(MessageIntent.NOTE_MESSAGE)) {
-			Log.i("Scatterfi", "Note received" + " [" + intent.getAction() + "]");
-		} else if(intent.getAction().equals(MessageIntent.DISCOVERY)) {
-			Log.i("Scatterfi", "Discovery request sent by " + RoutedMessage.convertByteArrayToAddress(message.getFromAddress()) + " [" + intent.getAction() + "]");
-		} else if(intent.getAction().equals(MessageIntent.LOST_CONNECTION) && type == DeviceType.SERVER) {
-			
 		} else if(intent.getAction().equals(MessageIntent.SERVER_MAC) && serverAddress == null) {
 			Log.i("Scatterfi", "Setting server address to " + intent.getExtras().getString("mac") + " [" + intent.getAction() + "]");
 			
@@ -435,14 +406,38 @@ public class RingOfMastersRoutingProtocol implements IRoutingProtocol {
 					networkMap.get(RoutedMessage.convertByteArrayToAddress(message.getFromAddress())).add(intent.getExtras().getString("mac"));
 					break;
 			}
-		} else {
-			try {
-				//Let Android handle the intent otherwise
-				intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				context.startActivity(intent);
-			} catch(ActivityNotFoundException e) {
-				Log.e("Scatterfi", "Could not launch intent: " + e.getMessage());
+		} else if(intent.getAction().equals(MessageIntent.LOST_CONNECTION) && type == DeviceType.SERVER) {
+			String address = intent.getExtras().getString("mac");
+			
+			//Try to remove this as a master/slave from the map
+			ArrayList<String> removed = networkMap.remove(address);
+			
+			//If the device wasn't a master/slave, check all slaves
+			if(removed == null) {
+				Set<String> msNodes = networkMap.keySet();
+				boolean foundSlave = false;
+				
+				//Loop through each master/slave
+				for(String s : msNodes) {
+					ArrayList<String> slaves = networkMap.get(s);
+					Iterator<String> iSlaves = slaves.iterator();
+					
+					//Check each slave
+					while(iSlaves.hasNext()) {
+						String is = iSlaves.next();
+						
+						if(is.equals(address)) {
+							iSlaves.remove();
+							foundSlave = true;
+							break;
+						}
+					}
+					
+					if(foundSlave) break;
+				}
 			}
+		} else {
+			super.processIntent(message);
 		}
 	}
 	

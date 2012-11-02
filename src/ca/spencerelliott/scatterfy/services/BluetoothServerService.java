@@ -68,10 +68,12 @@ public class BluetoothServerService extends Service {
 		}
 		
 		@Override
-		public boolean registerUser(String mac) throws RemoteException {
+		public boolean registerUser(String mac, MessengerCallback callback) throws RemoteException {
 			try {
+				if(callback != null) callback.update("Clearing connections...");
 				((RingOfMastersRoutingProtocol)protocol).clearAllConnections();
 				
+				if(callback != null) callback.update("Attempting to connect to device...");
 				//Create the remote device
 				BluetoothDevice device = adapter.getRemoteDevice(mac);
 				BluetoothSocket socket = device.createInsecureRfcommSocketToServiceRecord(BluetoothSettings.BT_UUID);
@@ -80,9 +82,21 @@ public class BluetoothServerService extends Service {
 				BluetoothSocketDevice d = new BluetoothSocketDevice(device, socket);
 				d.setRoutingProtocol(protocol);
 				
+				if(callback != null) callback.update("Adding to network...");
 				protocol.newClient(d, false);
+				
+				if(callback != null) callback.update("Connected!");
+				Thread.sleep(500);
 			} catch (IOException e) {
+				if(callback != null) callback.update("Failed to connect...");
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e1) {
+					
+				}
 				return false;
+			} catch (InterruptedException e) {
+				
 			}
 			
 			return true;

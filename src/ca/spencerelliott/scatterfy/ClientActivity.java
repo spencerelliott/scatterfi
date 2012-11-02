@@ -3,6 +3,7 @@ package ca.spencerelliott.scatterfy;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.ClientService;
 import ca.spencerelliott.scatterfy.services.IBluetoothServerService;
+import ca.spencerelliott.scatterfy.services.MessengerCallback;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -41,16 +42,32 @@ private TextView status = null;
 	
 	private static final int OPEN_CONNECTING_DIALOG = 0;
 	private static final int CLOSE_CONNECTING_DIALOG = 1;
+	private static final int UPDATE_CONNECTING_DIALOG = 2;
 	
 	private Handler dialogHandler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
 			switch(msg.what) {
 				case OPEN_CONNECTING_DIALOG:
+					//Show the progress dialog
+					progressDialog = new ProgressDialog(ClientActivity.this);
+					progressDialog.setIndeterminate(true);
+					progressDialog.setCancelable(false);
+					
+					progressDialog.setMessage(getResources().getText(R.string.connecting));
+					
+					progressDialog.show();
+					
 					ConnectionThread thread = new ConnectionThread();
 					thread.execute((String)msg.obj);
 					break;
 				case CLOSE_CONNECTING_DIALOG:
+					if(progressDialog != null) progressDialog.dismiss();
+					break;
+				case UPDATE_CONNECTING_DIALOG:
+					if(progressDialog != null) {
+						progressDialog.setMessage((String)msg.obj);
+					}
 					break;
 			}
 		}
@@ -166,44 +183,37 @@ private TextView status = null;
 	    return true;
 	}
 	
+	private MessengerCallback.Stub callback = new MessengerCallback.Stub() {
+		@Override
+		public void update(String message) throws RemoteException {
+			if(progressDialog != null) {
+				Message msg = new Message();
+				msg.what = UPDATE_CONNECTING_DIALOG;
+				msg.obj = message;
+				
+				dialogHandler.sendMessage(msg);
+			}
+		}
+	};
+	
 	private class ConnectionThread extends AsyncTask<String, Void, Void> {		
 		@Override
-		protected Void doInBackground(String... params) {
-			ClientActivity.this.runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					//Show the progress dialog
-					progressDialog = new ProgressDialog(ClientActivity.this);
-					progressDialog.setIndeterminate(true);
-					progressDialog.setCancelable(false);
-					
-					progressDialog.setMessage(getResources().getText(R.string.connecting));
-					
-					progressDialog.show();
-				}
-			});
-			
-			
+		protected Void doInBackground(String... params) {			
 			if(service != null) {
 				try {
-					service.registerUser(params[0]);
+					service.registerUser(params[0], callback);
 				} catch (RemoteException e) {
 					Log.i("Scatterfi", "Could not register device: " + e.getMessage());
 				}
 			}
+			
 			return null;
 		}
 		
+		@Override
 		protected void onPostExecute(Void result) {
-	         if(progressDialog != null) {
-	        	 ClientActivity.this.runOnUiThread(new Runnable() {
-	 				@Override
-	 				public void run() {
-	 					progressDialog.dismiss();
-	 				}
-	 			});
-	         }
-	     }
+			dialogHandler.sendEmptyMessage(CLOSE_CONNECTING_DIALOG);
+	    }
 		
 	}
 	
@@ -229,7 +239,7 @@ private TextView status = null;
 				dialogHandler.sendMessage(msg);
 				
 				try {
-					service.registerUser(intentConnectionMac);
+					service.registerUser(intentConnectionMac, callback);
 				} catch (RemoteException e) {
 					Log.e("Scatterfi", "Failed to register on NFC connection");
 				}
