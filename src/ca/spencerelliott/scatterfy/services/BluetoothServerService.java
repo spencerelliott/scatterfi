@@ -83,7 +83,7 @@ public class BluetoothServerService extends Service {
 				d.setRoutingProtocol(protocol);
 				
 				if(callback != null) callback.update("Adding to network...");
-				protocol.newClient(d, false);
+				protocol.newConnection(d, false);
 				
 				if(callback != null) callback.update("Connected!");
 				Thread.sleep(500);

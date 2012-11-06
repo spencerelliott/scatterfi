@@ -21,6 +21,8 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 
 public class RingOfMastersRoutingProtocol extends IRoutingProtocol {		
@@ -50,7 +52,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	private BackgroundConnectionThread thread = null;
 	
 	public RingOfMastersRoutingProtocol(Context context) {
-		this.context = context;
+		super(context);
 		
 		thread = new BackgroundConnectionThread(this);
 		thread.start();
@@ -105,8 +107,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 		}
 	}
 
-	@Override
-	public synchronized void receiveMessage(byte[] message) {
+	protected synchronized void receiveMessage(byte[] message) {
 		RoutedMessage received = new RoutedMessage(message);
 		
 		Log.i("Scatterfi", "Message received: " + received.getIntent());
@@ -134,7 +135,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	}
 
 	@Override
-	public void newClient(BluetoothSocketDevice device, boolean incoming) {
+	public void newConnection(BluetoothSocketDevice device, boolean incoming) {
 		//Add the device to the full list of devices
 		allDevices.put(device.getAddress(), device);
 		
@@ -201,6 +202,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 			
 			BluetoothSocketDevice d = allDevices.get(device.getAddress());
 			
+			//Cleanup the socket
 			if(d != null) {
 				d.cleanup();
 			}
@@ -285,7 +287,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 						
 						//Pass it to the protocol to handle
 						if(protocol != null) {
-							protocol.newClient(newDevice, true);
+							protocol.newConnection(newDevice, true);
 						}
 					}
 				} catch(IOException e) {
@@ -303,7 +305,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	
 	public void clearAllConnections() {
 		//Disconnect from the next node if it exists
-		if(next != null) {
+		/*if(next != null) {
 			next.cleanup();
 			next = null;
 		}
@@ -314,12 +316,16 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 		}
 		
 		//Create a new list of clients
-		clients = new ArrayList<BluetoothSocketDevice>();
+		clients = new ArrayList<BluetoothSocketDevice>();*/
 		
 		//Clean up all devices
 		for(String s : allDevices.keySet()) {
 			allDevices.get(s).cleanup();
 		}
+		allDevices.clear();
+		
+		next = null;
+		clients.clear();
 	}
 	
 	@Override
@@ -365,7 +371,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 				
 				notifyUser("Connected to " + mac);
 			} catch(IOException e) { 
-				Log.e("Scatterfi", "Could not connect to device! [" + intent.getAction() + "]");
+				Log.e("Scatterfi", "Could not connect to device! " + e.getMessage() + " [" + intent.getAction() + "]");
 			}
 		} else if(intent.getAction().equals(MessageIntent.INCOMING_SLAVE) && type == DeviceType.MASTER_SLAVE) {
 			//Get the extras from the intent and retrieve the incoming MAC address

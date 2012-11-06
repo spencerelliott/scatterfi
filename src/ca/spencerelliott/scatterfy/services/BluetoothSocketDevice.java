@@ -10,6 +10,8 @@ import ca.spencerelliott.scatterfy.routing.IRoutingProtocol;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 
 public class BluetoothSocketDevice {
@@ -165,8 +167,14 @@ public class BluetoothSocketDevice {
 						finalArray[i] = baArray[i];
 					}
 					
+					Message msg = new Message();
+					msg.what = IRoutingProtocol.HANDLE_MESSAGE;
+					msg.obj = finalArray;
+					
+					routing.handleMessage(msg);
+					
 					//Send the message to the routing protocol
-					routing.receiveMessage(finalArray);
+					//routing.receiveMessage(finalArray);
 				} catch (IOException e) {
 					Log.e("Scatterfi", "Lost connection in BluetoothSocketDevice: " + e.getMessage());
 					

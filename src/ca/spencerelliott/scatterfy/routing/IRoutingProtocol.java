@@ -19,6 +19,8 @@ import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
@@ -29,6 +31,25 @@ public abstract class IRoutingProtocol {
 	private NoteStorage noteStore = new NoteStorage();
 	
 	private NotificationManager nm = null;
+	
+	public static final int HANDLE_MESSAGE = 0;
+	
+	protected Handler messageHandler = null;
+	
+	public IRoutingProtocol(Context context) {
+		this.context = context;
+		
+		messageHandler = new Handler(context.getMainLooper()) {
+			@Override
+			public void handleMessage(Message msg) {
+				switch(msg.what) {
+					case HANDLE_MESSAGE:
+						receiveMessage((byte[])msg.obj);
+						break;
+				}
+			}
+		};
+	}
 	
 	/**
 	 * Sends a message to a specific MAC address within the network
@@ -47,14 +68,22 @@ public abstract class IRoutingProtocol {
 	 * Called when the client receives a message
 	 * @param message The data received for the message
 	 */
-	public abstract void receiveMessage(byte[] message);
+	public synchronized void handleMessage(Message msg) {
+		messageHandler.sendMessage(msg);
+	}
+	
+	/**
+	 * Process the message within this call
+	 * @param message The message received
+	 */
+	protected abstract void receiveMessage(byte[] message);
 	
 	/**
 	 * Called when a new client is trying to connect to the device
 	 * @param device The device that was connected
 	 * @param incoming Determines whether this connection was made by the device or it was an incoming connection
 	 */
-	public abstract void newClient(BluetoothSocketDevice device, boolean incoming);
+	public abstract void newConnection(BluetoothSocketDevice device, boolean incoming);
 	
 	/**
 	 * Called when a client has disconnected from the client
