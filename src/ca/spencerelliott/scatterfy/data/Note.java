@@ -1,5 +1,9 @@
 package ca.spencerelliott.scatterfy.data;
 
-public class Note {
+import java.util.Date;
 
+public class Note {
+	public Date DATE;
+	public String NOTE;
+	public String TO;
 }

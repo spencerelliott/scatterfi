@@ -10,5 +10,8 @@
     <string name="device_addr_hint">Device address</string>
     <string name="network_map">Network map</string>
     <string name="connecting">Connecting to server. Please wait...</string>
+    <string name="notes">Notes</string>
+    <string name="send">Send Intent</string>
+    <string name="chat_hint">Enter message</string>
 
 </resources>

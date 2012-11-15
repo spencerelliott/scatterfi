@@ -1,6 +1,7 @@
 package ca.spencerelliott.scatterfy.routing;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 
 import ca.spencerelliott.scatterfy.MainActivity;
@@ -149,10 +150,17 @@ public abstract class IRoutingProtocol {
 		if(intent.getAction().equals(MessageIntent.CHAT_MESSAGE)) {
 			ChatMessage msg = new ChatMessage();
 			
+			msg.FROM = RoutedMessage.convertByteArrayToAddress(message.getFromAddress());
+			msg.DATE = new Date(message.getId());
+			msg.MESSAGE = intent.getExtras().getString("message");
+			
 			chatStore.saveMessage(msg);
 			Log.i("Scatterfi", "Chat message received" + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.NOTE_MESSAGE)) {
 			Note note = new Note();
+			note.TO = RoutedMessage.convertByteArrayToAddress(message.getToAddress());
+			note.DATE = new Date(message.getId());
+			note.NOTE = intent.getExtras().getString("note");
 			
 			noteStore.saveNote(note);
 			Log.i("Scatterfi", "Note received" + " [" + intent.getAction() + "]");

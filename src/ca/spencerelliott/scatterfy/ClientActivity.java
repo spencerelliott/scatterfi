@@ -1,5 +1,6 @@
 package ca.spencerelliott.scatterfy;
 
+import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.ClientService;
 import ca.spencerelliott.scatterfy.services.IBluetoothServerService;
@@ -98,9 +99,12 @@ private TextView status = null;
 		send.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View view) {
-				if(service != null) {
-					Uri uri = Uri.parse(chat.getText().toString());
-					Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+				if(service != null && !chat.getText().toString().trim().isEmpty()) {
+					//Uri uri = Uri.parse(chat.getText().toString());
+					//Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+					
+					Intent intent = new Intent(MessageIntent.CHAT_MESSAGE);
+					intent.putExtra("message", chat.getText().toString());
 					
 					try {
 						service.sendMessage("00:00:00:00:00:00", intent);
