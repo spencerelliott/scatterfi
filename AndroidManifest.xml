@@ -32,6 +32,7 @@
                 <data android:host="client" android:scheme="scatterfi" android:pathPattern=".*"/>
             </intent-filter>
         </activity>
+        <activity android:name=".ViewerActivity"></activity>
     </application>
 
 </manifest>

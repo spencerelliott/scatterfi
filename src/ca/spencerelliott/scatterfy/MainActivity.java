@@ -45,6 +45,11 @@ public class MainActivity extends Activity {
         
         adapterList.add(option);
         
+        option = new HashMap<String,String>();
+        option.put("title", "View previous notes/chat logs");
+        
+        adapterList.add(option);
+        
         SimpleAdapter adapter = new SimpleAdapter(this, adapterList, R.layout.option_listitem, new String[] { "title" }, new int[] { R.id.itemtext });
     
         ListView optionList = (ListView)findViewById(R.id.launch_list);
@@ -61,6 +66,10 @@ public class MainActivity extends Activity {
 					case 1:
 						Intent clientIntent = new Intent(MainActivity.this, ClientActivity.class);
 						startActivity(clientIntent);
+						break;
+					case 2:
+						Intent viewerIntent = new Intent(MainActivity.this, ViewerActivity.class);
+						startActivity(viewerIntent);
 						break;
 				}
 			}

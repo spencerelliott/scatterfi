@@ -11,7 +11,11 @@
     <string name="network_map">Network map</string>
     <string name="connecting">Connecting to server. Please wait...</string>
     <string name="notes">Notes</string>
-    <string name="send">Send Intent</string>
+    <string name="send">Send intent</string>
     <string name="chat_hint">Enter message</string>
+    <string name="note_hint">Note</string>
+    <string name="user">User</string>
+    <string name="intent">Intent</string>
+    <string name="intent_definition">You can send an Android intent to all devices on this network. For example, if you\'d like to display a webpage you can enter in a URL such as http://www.android.com. As long as the users device can handle the intent, it will be triggered.</string>
 
 </resources>

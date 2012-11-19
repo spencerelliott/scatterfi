@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="5dip"
+    android:orientation="vertical" >
+
+    <EditText
+        android:id="@+id/note_text"
+        android:layout_width="match_parent"
+        android:layout_height="96dip"
+        android:gravity="top"
+        android:ems="10"
+        android:hint="@string/note_hint"
+        android:inputType="textMultiLine" >
+
+        <requestFocus />
+    </EditText>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/user" />
+
+    <Spinner
+        android:id="@+id/user_select"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"  />
+
+</LinearLayout>

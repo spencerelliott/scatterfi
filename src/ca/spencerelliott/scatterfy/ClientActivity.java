@@ -1,5 +1,8 @@
 package ca.spencerelliott.scatterfy;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+
 import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.ClientService;
@@ -31,7 +34,10 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.SimpleAdapter;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class ClientActivity extends Activity {
 private TextView status = null;
@@ -136,6 +142,9 @@ private TextView status = null;
 	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
+		LayoutInflater inflater = LayoutInflater.from(this);
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		
 	    // Handle item selection
 	    switch (item.getItemId()) {
 	        case R.id.menu_disconnect:
@@ -144,13 +153,10 @@ private TextView status = null;
 	        	break;
 	        case R.id.menu_connect:
 				try {
-					if(!service.isConnected()) {
-		        		LayoutInflater inflater = LayoutInflater.from(this);
-		        		
+					if(!service.isConnected()) {		        		
 		        		LinearLayout dialogInflated = (LinearLayout)inflater.inflate(R.layout.connect_dialog, null);
 		        		final TextView deviceText = (TextView)dialogInflated.findViewById(R.id.device_mac);
 		        		
-		        		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		        		AlertDialog dialog = builder.setView(dialogInflated)
 		        			.setTitle(R.string.connect)
 		        			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
@@ -180,6 +186,83 @@ private TextView status = null;
 					
 				}
 	        	break;
+	        case R.id.menu_notes:        		
+        		LinearLayout dialogInflated = (LinearLayout)inflater.inflate(R.layout.note_dialog, null);
+        		final TextView noteText = (TextView)dialogInflated.findViewById(R.id.note_text);
+        		final Spinner userSpinner = (Spinner)dialogInflated.findViewById(R.id.user_select);
+        		
+        		ArrayList<HashMap<String,String>> clientList = new ArrayList<HashMap<String,String>>();
+        		
+        		HashMap<String,String> broadcastUser = new HashMap<String,String>();
+        		broadcastUser.put("mac", "00:00:00:00:00:00");
+        		
+        		clientList.add(broadcastUser);
+        		
+        		SimpleAdapter adapter = new SimpleAdapter(ClientActivity.this, clientList, R.layout.spinner_row, new String[] { "mac" }, new int[] { R.id.spinner_text });
+        		userSpinner.setAdapter(adapter);
+        		
+        		AlertDialog dialog = builder.setView(dialogInflated)
+        			.setTitle(R.string.note_hint)
+        			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							String note = noteText.getText().toString();
+							@SuppressWarnings("unchecked")
+							String selectedUser = ((HashMap<String,String>)userSpinner.getSelectedItem()).get("mac");
+							
+							Intent intent = new Intent(MessageIntent.NOTE_MESSAGE);
+							intent.putExtra("note", note);
+							
+							Toast.makeText(ClientActivity.this, "Sending note to " + selectedUser, Toast.LENGTH_SHORT).show();
+							
+							/*
+							try {
+								service.sendMessage(selectedUser, intent);
+							} catch (RemoteException e) {
+								
+							}*/
+						}
+        			})
+        			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.dismiss();
+						}
+					})
+					.create();
+        		
+        		dialog.show();
+	        	break;
+	        case R.id.menu_send:        		
+        		LinearLayout intentInflated = (LinearLayout)inflater.inflate(R.layout.intent_dialog, null);
+        		final TextView intentText = (TextView)intentInflated.findViewById(R.id.intent_text);
+        		
+        		AlertDialog intentDialog = builder.setView(intentInflated)
+        			.setTitle(R.string.send)
+        			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							Uri uri = Uri.parse(intentText.getText().toString());
+							Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+							
+							/*
+							try {
+								service.sendMessage(selectedUser, intent);
+							} catch (RemoteException e) {
+								
+							}*/
+						}
+        			})
+        			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.dismiss();
+						}
+					})
+					.create();
+        		
+        		intentDialog.show();
+	        	break;
 	        default:
 	            return super.onOptionsItemSelected(item);
 	    }
@@ -197,6 +280,11 @@ private TextView status = null;
 				
 				dialogHandler.sendMessage(msg);
 			}
+		}
+
+		@Override
+		public void newMessage(String from, String message) throws RemoteException {
+			
 		}
 	};
 	

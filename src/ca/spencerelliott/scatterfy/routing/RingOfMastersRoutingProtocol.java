@@ -234,6 +234,8 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	
 	@Override
 	public void destroyAndCleanUp() {
+		super.destroyAndCleanUp();
+		
 		thread.stopListening();
 		clearAllConnections();
 	}

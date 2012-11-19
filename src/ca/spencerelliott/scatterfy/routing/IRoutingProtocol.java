@@ -28,8 +28,8 @@ import android.util.Log;
 public abstract class IRoutingProtocol {
 	protected Context context = null;
 	
-	private ChatStorage chatStore = new ChatStorage();
-	private NoteStorage noteStore = new NoteStorage();
+	private ChatStorage chatStore;
+	private NoteStorage noteStore;
 	
 	private NotificationManager nm = null;
 	
@@ -39,6 +39,11 @@ public abstract class IRoutingProtocol {
 	
 	public IRoutingProtocol(Context context) {
 		this.context = context;
+		
+		Date curDate = new Date();
+		
+		chatStore = new ChatStorage(context, curDate);
+		noteStore = new NoteStorage(context, curDate);
 		
 		messageHandler = new Handler(context.getMainLooper()) {
 			@Override
@@ -101,7 +106,10 @@ public abstract class IRoutingProtocol {
 	/**
 	 * Destroys and closes any connections that this this routing protocol has
 	 */
-	public abstract void destroyAndCleanUp();
+	public void destroyAndCleanUp() {
+		chatStore.cleanup();
+		noteStore.cleanup();
+	}
 	
 	/**
 	 * Sets the type of device that this protocol is running on
