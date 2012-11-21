@@ -2,9 +2,12 @@ package ca.spencerelliott.scatterfy;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 
+import ca.spencerelliott.scatterfy.messages.MessageIntent;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.IBluetoothServerService;
+import ca.spencerelliott.scatterfy.services.MessengerCallback;
 import ca.spencerelliott.scatterfy.services.ServerService;
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -20,8 +23,10 @@ import android.nfc.NdefRecord;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Message;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -29,8 +34,12 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.ScrollView;
+import android.widget.SimpleAdapter;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class ServerActivity extends Activity {
 	private TextView status = null;
@@ -39,6 +48,9 @@ public class ServerActivity extends Activity {
 	private NfcAdapter nfcAdapter = null;
 	
 	private NdefMessage nfcMessage = null;
+	
+	private ArrayList<HashMap<String,String>> chatList = new ArrayList<HashMap<String,String>>();
+	private SimpleAdapter chatAdapter = null;
 	
 	@SuppressLint("NewApi")
 	@Override
@@ -49,17 +61,23 @@ public class ServerActivity extends Activity {
 		Intent serverService = new Intent(this, ServerService.class);
 		startService(serverService);
 		
+		chatAdapter = new SimpleAdapter(this, chatList, R.layout.list_chat_row, new String[] { "from", "message" }, new int[] { R.id.user_addr, R.id.chat_message });
+		
 		status = (TextView)findViewById(R.id.status);
 		
 		final EditText chat = (EditText)findViewById(R.id.chat_message);
+		chat.setText(BluetoothSettings.MY_BT_ADDR);
 		
 		Button send = (Button)findViewById(R.id.send_button);
 		send.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View view) {
 				if(service != null) {
-					Uri uri = Uri.parse(chat.getText().toString());
-					Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+					//Uri uri = Uri.parse(chat.getText().toString());
+					//Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+					
+					Intent intent = new Intent(MessageIntent.CHAT_MESSAGE);
+					intent.putExtra("message", chat.getText().toString());
 					
 					try {
 						//service.sendMessage(BluetoothSettings.MY_BT_ADDR, intent);
@@ -86,6 +104,9 @@ public class ServerActivity extends Activity {
 			//Create the message to be sent
 			nfcMessage = new NdefMessage(new NdefRecord[] { uriRecord });
 		}
+		
+		ListView chatMessages = (ListView)findViewById(R.id.chat_list);
+		chatMessages.setAdapter(chatAdapter);
 	}
 	
 	@SuppressWarnings("deprecation")
@@ -129,6 +150,9 @@ public class ServerActivity extends Activity {
 	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
+		LayoutInflater inflater = LayoutInflater.from(this);
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		
 	    // Handle item selection
 	    switch (item.getItemId()) {
 	        case R.id.menu_disconnect:
@@ -137,6 +161,81 @@ public class ServerActivity extends Activity {
 	        	break;
 	        case R.id.menu_network_map:
 	        	displayNetworkMap();
+	        	break;
+	        case R.id.menu_notes:        		
+        		LinearLayout dialogInflated = (LinearLayout)inflater.inflate(R.layout.note_dialog, null);
+        		final TextView noteText = (TextView)dialogInflated.findViewById(R.id.note_text);
+        		final Spinner userSpinner = (Spinner)dialogInflated.findViewById(R.id.user_select);
+        		
+        		ArrayList<HashMap<String,String>> clientList = new ArrayList<HashMap<String,String>>();
+        		
+        		HashMap<String,String> broadcastUser = new HashMap<String,String>();
+        		broadcastUser.put("mac", "00:00:00:00:00:00");
+        		
+        		clientList.add(broadcastUser);
+        		
+        		SimpleAdapter adapter = new SimpleAdapter(ServerActivity.this, clientList, R.layout.spinner_row, new String[] { "mac" }, new int[] { R.id.spinner_text });
+        		userSpinner.setAdapter(adapter);
+        		
+        		AlertDialog dialog = builder.setView(dialogInflated)
+        			.setTitle(R.string.note_hint)
+        			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							String note = noteText.getText().toString();
+							@SuppressWarnings("unchecked")
+							String selectedUser = ((HashMap<String,String>)userSpinner.getSelectedItem()).get("mac");
+							
+							Intent intent = new Intent(MessageIntent.NOTE_MESSAGE);
+							intent.putExtra("note", note);
+							
+							Toast.makeText(ServerActivity.this, "Sending note to " + selectedUser, Toast.LENGTH_SHORT).show();
+							
+							try {
+								service.sendMessage(selectedUser, intent);
+							} catch (RemoteException e) {
+								
+							}
+						}
+        			})
+        			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.dismiss();
+						}
+					})
+					.create();
+        		
+        		dialog.show();
+	        	break;
+	        case R.id.menu_send:        		
+        		LinearLayout intentInflated = (LinearLayout)inflater.inflate(R.layout.intent_dialog, null);
+        		final TextView intentText = (TextView)intentInflated.findViewById(R.id.intent_text);
+        		
+        		AlertDialog intentDialog = builder.setView(intentInflated)
+        			.setTitle(R.string.send)
+        			.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							Uri uri = Uri.parse(intentText.getText().toString());
+							Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+							
+							try {
+								service.sendMessage("00:00:00:00:00:00", intent);
+							} catch (RemoteException e) {
+								
+							}
+						}
+        			})
+        			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.dismiss();
+						}
+					})
+					.create();
+        		
+        		intentDialog.show();
 	        	break;
 	        default:
 	            return super.onOptionsItemSelected(item);
@@ -191,6 +290,26 @@ public class ServerActivity extends Activity {
 		
 		dialog.show();
 	}
+	
+	private MessengerCallback.Stub callback = new MessengerCallback.Stub() {
+		@Override
+		public void update(String message) throws RemoteException {
+			
+		}
+
+		@Override
+		public void newMessage(String from, String message) throws RemoteException {
+			Log.i("Scatterfi", "Chat message [" + from + ": " + message + "]");
+			
+			HashMap<String,String> newMessage = new HashMap<String,String>();
+			
+			newMessage.put("from", from);
+			newMessage.put("message", message);
+			
+			chatList.add(newMessage);
+			chatAdapter.notifyDataSetChanged();
+		}
+	};
 	
 	private ServiceConnection connection = new ServiceConnection() {
 		@Override

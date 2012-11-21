@@ -5,7 +5,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 
@@ -22,7 +26,7 @@ public class ViewerActivity extends Activity {
 			meetingList = dir.list();
 		}
 		
-		ArrayList<HashMap<String,String>> listOptions = new ArrayList<HashMap<String,String>>();
+		final ArrayList<HashMap<String,String>> listOptions = new ArrayList<HashMap<String,String>>();
 		
 		for(String s : meetingList) {
 			HashMap<String,String> dateMap = new HashMap<String,String>();
@@ -36,6 +40,16 @@ public class ViewerActivity extends Activity {
 			
 			ListView logList = (ListView)findViewById(R.id.viewer_list);
 			logList.setAdapter(adapter);
+			
+			logList.setOnItemClickListener(new OnItemClickListener() {
+				@Override
+				public void onItemClick(AdapterView<?> adapter, View clickedView, int position, long id) {
+					Intent intent = new Intent(ViewerActivity.this, TextViewerActivity.class);
+					intent.putExtra("filename", ViewerActivity.this.getFilesDir() + "/logs/" + (String)listOptions.get(position).get("date") + "chat.txt");
+					
+					startActivity(intent);
+				}
+			});
 		}
 	}
 }

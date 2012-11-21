@@ -395,7 +395,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 			incomingMasterSlave = mac;
 		} else if(intent.getAction().equals(MessageIntent.INCOMING_CONNECTION_IGNORE) && type == DeviceType.SERVER) {
 			ignoreList.add(intent.getExtras().getString("mac"));
-		} else if(intent.getAction().equals(MessageIntent.SERVER_MAC) && serverAddress == null) {
+		} else if(intent.getAction().equals(MessageIntent.SERVER_MAC)) {
 			Log.i("Scatterfi", "Setting server address to " + intent.getExtras().getString("mac") + " [" + intent.getAction() + "]");
 			
 			serverAddress = intent.getExtras().getString("mac");

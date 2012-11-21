@@ -2,6 +2,7 @@ package ca.spencerelliott.scatterfy.routing;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 import ca.spencerelliott.scatterfy.MainActivity;
@@ -15,6 +16,7 @@ import ca.spencerelliott.scatterfy.messages.RoutedMessage;
 import ca.spencerelliott.scatterfy.services.BluetoothSettings;
 import ca.spencerelliott.scatterfy.services.BluetoothSocketDevice;
 import ca.spencerelliott.scatterfy.services.DeviceType;
+import ca.spencerelliott.scatterfy.services.MessengerCallback;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
@@ -22,11 +24,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Message;
+import android.os.RemoteException;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 public abstract class IRoutingProtocol {
 	protected Context context = null;
+	protected MessengerCallback callback = null;
 	
 	private ChatStorage chatStore;
 	private NoteStorage noteStore;
@@ -163,6 +167,15 @@ public abstract class IRoutingProtocol {
 			msg.MESSAGE = intent.getExtras().getString("message");
 			
 			chatStore.saveMessage(msg);
+			
+			if(callback != null) {
+				try {
+					callback.newMessage(msg.FROM, msg.MESSAGE);
+				} catch (RemoteException e) {
+					
+				}
+			}
+			
 			Log.i("Scatterfi", "Chat message received" + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.NOTE_MESSAGE)) {
 			Note note = new Note();
@@ -183,5 +196,17 @@ public abstract class IRoutingProtocol {
 				Log.e("Scatterfi", "Could not launch intent: " + e.getMessage());
 			}
 		}
+	}
+	
+	public void registerCallback(MessengerCallback callback) {
+		this.callback = callback;
+	}
+	
+	public void unregisterCallback(MessengerCallback callback) {
+		this.callback = null;
+	}
+	
+	public ArrayList<String> getChatMessages() {
+		return chatStore.getMessages();
 	}
 }

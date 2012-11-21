@@ -1,6 +1,7 @@
 package ca.spencerelliott.scatterfy.services;
 
 import java.util.List;
+import java.util.Map;
 import android.content.Intent;
 import ca.spencerelliott.scatterfy.services.MessengerCallback;
 
@@ -12,4 +13,7 @@ interface IBluetoothServerService {
 	void sendMessage(in String address, in Intent intent);
 	List<String> getMasterSlaves();
 	List<String> getSlaves(in String msMac);
+	void registerCallback(MessengerCallback callback);
+	void unregisterCallback(MessengerCallback callback);
+	List<String> getChatMessages();
 }

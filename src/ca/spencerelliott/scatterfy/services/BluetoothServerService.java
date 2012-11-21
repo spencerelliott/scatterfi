@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import ca.spencerelliott.scatterfy.routing.IRoutingProtocol;
 import ca.spencerelliott.scatterfy.routing.RingOfMastersRoutingProtocol;
@@ -124,6 +125,21 @@ public class BluetoothServerService extends Service {
 			LinkedHashMap<String,ArrayList<String>> map = protocol.getNetworkMap();
 			
 			return map.get(msMac);
+		}
+
+		@Override
+		public void registerCallback(MessengerCallback callback) throws RemoteException {
+			protocol.registerCallback(callback);
+		}
+
+		@Override
+		public void unregisterCallback(MessengerCallback callback) throws RemoteException {
+			protocol.unregisterCallback(callback);
+		}
+
+		@Override
+		public List<String> getChatMessages() throws RemoteException {
+			return protocol.getChatMessages();
 		}
 	};
 

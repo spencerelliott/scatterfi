@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
-    <item android:id="@+id/menu_network_map" android:title="@string/network_map" android:icon="@drawable/ic_menu_selectall_holo_dark" android:showAsAction="always" android:orderInCategory="1"></item><item android:id="@+id/menu_disconnect" android:title="@string/disconnect" android:icon="@drawable/ic_clear_normal" android:showAsAction="always" android:orderInCategory="2"></item>
+    <item android:id="@+id/menu_network_map" android:title="@string/network_map" android:icon="@drawable/ic_menu_selectall_holo_dark" android:showAsAction="always" android:orderInCategory="1"></item><item android:id="@+id/menu_disconnect" android:title="@string/disconnect" android:icon="@drawable/ic_clear_normal" android:showAsAction="always" android:orderInCategory="2"></item><item android:id="@+id/menu_notes" android:showAsAction="ifRoom" android:title="@string/notes" android:icon="@drawable/ic_menu_copy_holo_dark" android:orderInCategory="3"></item><item android:id="@+id/menu_send" android:showAsAction="ifRoom" android:title="@string/send" android:icon="@drawable/ic_menu_send" android:orderInCategory="4"></item>
     
     
 

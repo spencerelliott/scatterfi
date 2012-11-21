@@ -34,6 +34,7 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -50,6 +51,9 @@ private TextView status = null;
 	private static final int OPEN_CONNECTING_DIALOG = 0;
 	private static final int CLOSE_CONNECTING_DIALOG = 1;
 	private static final int UPDATE_CONNECTING_DIALOG = 2;
+	
+	private ArrayList<HashMap<String,String>> chatList = new ArrayList<HashMap<String,String>>();
+	private SimpleAdapter chatAdapter = null;
 	
 	private Handler dialogHandler = new Handler() {
 		@Override
@@ -94,12 +98,15 @@ private TextView status = null;
 			intentConnectionMac = intent.getData().getQueryParameter("mac");
 	    }
 		
+		chatAdapter = new SimpleAdapter(this, chatList, R.layout.list_chat_row, new String[] { "from", "message" }, new int[] { R.id.user_addr, R.id.chat_message });
+		
 		Intent serverService = new Intent(this, ClientService.class);
 		startService(serverService);
 		
 		status = (TextView)findViewById(R.id.status);
 		
 		final EditText chat = (EditText)findViewById(R.id.chat_message);
+		chat.setText(BluetoothSettings.MY_BT_ADDR);
 		
 		Button send = (Button)findViewById(R.id.send_button);
 		send.setOnClickListener(new OnClickListener() {
@@ -120,6 +127,9 @@ private TextView status = null;
 				}
 			}
 		});
+		
+		ListView chatMessages = (ListView)findViewById(R.id.chat_list);
+		chatMessages.setAdapter(chatAdapter);
 	}
 	
 	@Override
@@ -130,6 +140,15 @@ private TextView status = null;
 	
 	@Override
 	public void onStop() {
+		if(service != null) {
+			//Make sure to remove the callback when exiting the application
+			try {
+				service.unregisterCallback(callback);
+			} catch (RemoteException e) {
+				
+			}
+		}
+		
 		unbindService(connection);
 		super.onStop();
 	}
@@ -215,12 +234,11 @@ private TextView status = null;
 							
 							Toast.makeText(ClientActivity.this, "Sending note to " + selectedUser, Toast.LENGTH_SHORT).show();
 							
-							/*
 							try {
 								service.sendMessage(selectedUser, intent);
 							} catch (RemoteException e) {
 								
-							}*/
+							}
 						}
         			})
         			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -245,12 +263,11 @@ private TextView status = null;
 							Uri uri = Uri.parse(intentText.getText().toString());
 							Intent intent = new Intent(Intent.ACTION_VIEW, uri);
 							
-							/*
 							try {
-								service.sendMessage(selectedUser, intent);
+								service.sendMessage("00:00:00:00:00:00", intent);
 							} catch (RemoteException e) {
 								
-							}*/
+							}
 						}
         			})
         			.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -284,7 +301,13 @@ private TextView status = null;
 
 		@Override
 		public void newMessage(String from, String message) throws RemoteException {
+			HashMap<String,String> newMessage = new HashMap<String,String>();
 			
+			newMessage.put("from", from);
+			newMessage.put("message", message);
+			
+			chatList.add(newMessage);
+			chatAdapter.notifyDataSetChanged();
 		}
 	};
 	
@@ -332,10 +355,37 @@ private TextView status = null;
 				
 				try {
 					service.registerUser(intentConnectionMac, callback);
+					
+					//Register to receive updates
+					service.registerCallback(callback);
 				} catch (RemoteException e) {
 					Log.e("Scatterfi", "Failed to register on NFC connection");
 				}
 			}
+			
+			try {
+				//Get all previous chat messages
+				ArrayList<String> previousChat = (ArrayList<String>)service.getChatMessages();
+				
+				if(previousChat != null) {
+					for(String s : previousChat) {
+						HashMap<String,String> decodedMessage = new HashMap<String,String>();
+						String[] splitMessage = s.split(":::");
+						
+						decodedMessage.put("from", splitMessage[0]);
+						decodedMessage.put("message", splitMessage[1]);
+						
+						//Add the message to the list
+						chatList.add(decodedMessage);
+					}
+					
+					//Tell the adapter to update
+					chatAdapter.notifyDataSetChanged();
+				}
+			} catch (RemoteException e) {
+				
+			}
+			
 		}
 
 		@Override

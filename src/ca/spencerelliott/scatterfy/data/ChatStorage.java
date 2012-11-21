@@ -17,14 +17,20 @@ public class ChatStorage {
 	}
 	
 	public void saveMessage(ChatMessage msg) {
-		
+		store.store("<" + msg.FROM + ">:" + msg.MESSAGE + "\n");
 	}
 	
 	public void cleanup() {
 		store.cleanup();
 	}
 	
-	public ArrayList<HashMap<String,String>> getMessages() {
-		return messages;
+	public ArrayList<String> getMessages() {
+		ArrayList<String> formattedMessages = new ArrayList<String>();
+		
+		for(HashMap<String,String> h : messages) {
+			formattedMessages.add(h.get("from") + ":::" + h.get("message"));
+		}
+		
+		return formattedMessages;
 	}
 }

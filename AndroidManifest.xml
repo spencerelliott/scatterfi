@@ -33,6 +33,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".ViewerActivity"></activity>
+        <activity android:name=".TextViewerActivity"></activity>
     </application>
 
 </manifest>
