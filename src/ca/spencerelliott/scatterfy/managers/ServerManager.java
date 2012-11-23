@@ -51,6 +51,12 @@ public class ServerManager {
 		//Send the server address to the new device
 		sendServerAddress(device);
 		
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			Log.i("Scatterfi", "Interrupted while sleeping");
+		}
+		
 		//Create the intent to send to the device to tell it to connect to the server again
 		intent = new Intent(MessageIntent.CONNECT);
 		intent.putExtra("mac", BluetoothSettings.MY_BT_ADDR);
@@ -87,6 +93,12 @@ public class ServerManager {
 				protocol.sendMessage(s, intent);
 				
 				sendServerAddress(device);
+				
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					Log.i("Scatterfi", "Interrupted while sleeping");
+				}
 				
 				intent = new Intent(MessageIntent.CONNECT);
 				intent.putExtra("mac", s);
@@ -127,6 +139,12 @@ public class ServerManager {
 		
 		//Send the loopback message
 		protocol.sendMessage(BluetoothSettings.MY_BT_ADDR, intent);
+		
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			Log.i("Scatterfi", "Interrupted while sleeping");
+		}
 		
 		//Create the intent to tell the new device to connect to the last node
 		intent = new Intent(MessageIntent.CONNECT);

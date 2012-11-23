@@ -307,7 +307,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	
 	public void clearAllConnections() {
 		//Disconnect from the next node if it exists
-		/*if(next != null) {
+		if(next != null) {
 			next.cleanup();
 			next = null;
 		}
@@ -318,7 +318,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 		}
 		
 		//Create a new list of clients
-		clients = new ArrayList<BluetoothSocketDevice>();*/
+		clients = new ArrayList<BluetoothSocketDevice>();
 		
 		//Clean up all devices
 		for(String s : allDevices.keySet()) {
@@ -346,7 +346,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 			clearAllConnections();
 			
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(5000);
 			} catch(Exception e) {
 				Log.e("Scatterfi", "Interrupted while waiting: " + e.getMessage());
 			}

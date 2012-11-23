@@ -138,6 +138,15 @@ public class ServerActivity extends Activity {
 	
 	@Override
 	public void onStop() {
+		if(service != null) {
+			//Make sure to remove the callback when exiting the application
+			try {
+				service.unregisterCallback(callback);
+			} catch (RemoteException e) {
+				
+			}
+		}
+		
 		unbindService(connection);
 		super.onStop();
 	}
@@ -323,6 +332,12 @@ public class ServerActivity extends Activity {
 			});
 			
 			service = IBluetoothServerService.Stub.asInterface(binder);
+			
+			try {
+				service.registerCallback(callback);
+			} catch (RemoteException e1) {
+				
+			}
 		}
 
 		@Override

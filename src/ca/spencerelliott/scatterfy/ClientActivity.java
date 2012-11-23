@@ -345,6 +345,12 @@ private TextView status = null;
 			
 			service = IBluetoothServerService.Stub.asInterface(binder);
 			
+			try {
+				service.registerCallback(callback);
+			} catch (RemoteException e1) {
+				
+			}
+			
 			//Connect to the MAC address passed by the intent
 			if(intentConnectionMac != null) {
 				Message msg = new Message();
@@ -355,12 +361,11 @@ private TextView status = null;
 				
 				try {
 					service.registerUser(intentConnectionMac, callback);
-					
-					//Register to receive updates
-					service.registerCallback(callback);
 				} catch (RemoteException e) {
 					Log.e("Scatterfi", "Failed to register on NFC connection");
 				}
+				
+				intentConnectionMac = null;
 			}
 			
 			try {
