@@ -14,7 +14,7 @@ public class RoutedMessage {
 	private byte[] fromAddress = null;
 	private Intent message = null;
 	
-	public final static byte[] EOM = new byte[] { (byte)0xFF, (byte)0xFE, (byte)0xFD };
+	public final static byte[] EOM = new byte[] { (byte)0xF0, (byte)0xF1, (byte)0xF2 };
 	
 	/**
 	 * Creates an empty <code>Routedmessage</code> with a generated id

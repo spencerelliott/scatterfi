@@ -59,6 +59,7 @@ public class PersistentStorage {
 	public void cleanup() {
 		if(stream != null) {
 			try {
+				stream.flush();
 				stream.close();
 			} catch (IOException e) {
 				Log.i("Scatterfi", e.getMessage());

@@ -17,6 +17,12 @@ public class ChatStorage {
 	}
 	
 	public void saveMessage(ChatMessage msg) {
+		HashMap<String,String> newMessage = new HashMap<String,String>();
+		newMessage.put("from", msg.FROM);
+		newMessage.put("message", msg.MESSAGE);
+		
+		messages.add(newMessage);
+		
 		store.store("<" + msg.FROM + ">:" + msg.MESSAGE + "\n");
 	}
 	
