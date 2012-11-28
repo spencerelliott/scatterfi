@@ -124,6 +124,16 @@ private TextView status = null;
 					} catch (RemoteException e) {
 						
 					}
+					
+					HashMap<String,String> newMessage = new HashMap<String,String>();
+					
+					newMessage.put("from", BluetoothSettings.MY_BT_ADDR);
+					newMessage.put("message", chat.getText().toString());
+					
+					chatList.add(newMessage);
+					chatAdapter.notifyDataSetChanged();
+					
+					chat.setText("");
 				}
 			}
 		});
