@@ -28,6 +28,7 @@ public class MainActivity extends Activity {
             // Device does not support Bluetooth
         }
         
+        //Send an intent to enable Bluetooth if it is not enabled
         if (!mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
@@ -59,14 +60,17 @@ public class MainActivity extends Activity {
 			@Override
 			public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
 				switch(position) {
+					//Start the server activity
 					case 0:
 						Intent serverIntent = new Intent(MainActivity.this, ServerActivity.class);
 						startActivity(serverIntent);
 						break;
+					//Start the client activity
 					case 1:
 						Intent clientIntent = new Intent(MainActivity.this, ClientActivity.class);
 						startActivity(clientIntent);
 						break;
+					//Start the activity to view notes
 					case 2:
 						Intent viewerIntent = new Intent(MainActivity.this, ViewerActivity.class);
 						startActivity(viewerIntent);
@@ -83,7 +87,7 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.activity_main, menu);
+        //getMenuInflater().inflate(R.menu.activity_main, menu);
         return true;
     }
 }

@@ -137,9 +137,11 @@ public abstract class IRoutingProtocol {
 			nm = (NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
 		}
 		
+		//Create the intent to be executed when the notification is clicked
 		Intent notificationIntent = new Intent(context, MainActivity.class);
 		PendingIntent contentIntent = PendingIntent.getActivity(context, 0, notificationIntent, 0);
 		
+		//Create the notification
 		NotificationCompat.Builder notiBuilder = new NotificationCompat.Builder(context)
 			.setSmallIcon(R.drawable.ic_launcher)
 			.setContentTitle("Scatterfi")
@@ -147,6 +149,7 @@ public abstract class IRoutingProtocol {
 			.setOngoing(true)
 			.setContentIntent(contentIntent);
 		
+		//Display the notification
 		nm.notify(BluetoothSettings.NOTIFICATION_ID, notiBuilder.getNotification());
 	}
 	
@@ -162,12 +165,15 @@ public abstract class IRoutingProtocol {
 		if(intent.getAction().equals(MessageIntent.CHAT_MESSAGE)) {
 			ChatMessage msg = new ChatMessage();
 			
+			//Save the chat information in a chat message
 			msg.FROM = RoutedMessage.convertByteArrayToAddress(message.getFromAddress());
 			msg.DATE = new Date(message.getId());
 			msg.MESSAGE = intent.getExtras().getString("message");
 			
+			//Save the message to the persistent storage
 			chatStore.saveMessage(msg);
 			
+			//Notify the application of a new message if one has provided a callback
 			if(callback != null) {
 				try {
 					callback.newMessage(msg.FROM, msg.MESSAGE);
@@ -179,13 +185,17 @@ public abstract class IRoutingProtocol {
 			Log.i("Scatterfi", "Chat message received" + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.NOTE_MESSAGE)) {
 			Note note = new Note();
+			
+			//Save the note information in a note
 			note.TO = RoutedMessage.convertByteArrayToAddress(message.getToAddress());
 			note.DATE = new Date(message.getId());
 			note.NOTE = intent.getExtras().getString("note");
 			
+			//Save the note to persistent storage
 			noteStore.saveNote(note);
 			Log.i("Scatterfi", "Note received" + " [" + intent.getAction() + "]");
 		} else if(intent.getAction().equals(MessageIntent.DISCOVERY)) {
+			//Discovery currently does not respond
 			Log.i("Scatterfi", "Discovery request sent by " + RoutedMessage.convertByteArrayToAddress(message.getFromAddress()) + " [" + intent.getAction() + "]");
 		} else {
 			try {
@@ -193,19 +203,32 @@ public abstract class IRoutingProtocol {
 				intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				context.startActivity(intent);
 			} catch(ActivityNotFoundException e) {
+				//Make sure not to crash if the intent cannot be handled
 				Log.e("Scatterfi", "Could not launch intent: " + e.getMessage());
 			}
 		}
 	}
 	
+	/**
+	 * Registers a callback that will be used to communicate with the application
+	 * @param callback The callback stub to use when communicating
+	 */
 	public void registerCallback(MessengerCallback callback) {
 		this.callback = callback;
 	}
 	
+	/**
+	 * Unregisters the callback attached to this protocol
+	 * @param callback The callback previously passed in
+	 */
 	public void unregisterCallback(MessengerCallback callback) {
 		this.callback = null;
 	}
 	
+	/**
+	 * Retrieves the list of chat messages this protocol has received
+	 * @return The list of chat messages received
+	 */
 	public ArrayList<String> getChatMessages() {
 		return chatStore.getMessages();
 	}

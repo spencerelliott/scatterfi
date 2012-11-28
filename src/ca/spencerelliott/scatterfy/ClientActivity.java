@@ -89,19 +89,24 @@ private TextView status = null;
 		super.onCreate(savedInstance);
 		setContentView(R.layout.activity_client);
 		
+		//Check the intent to see if this was triggered by an NFC message
 		if (NfcAdapter.ACTION_NDEF_DISCOVERED.equals(getIntent().getAction())) {
 			Intent intent = getIntent();
 	        
+			//Get the tag and output information to the log
 			Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-			
 			Log.i("Scatterfi", "Received NFC message: " + intent.getDataString() + " [" + tag.describeContents() + "]");
+			
+			//Get the MAC address this device should connect to
 			intentConnectionMac = intent.getData().getQueryParameter("mac");
 	    }
 		
+		//Create the adapter that will contain all chat messages
 		chatAdapter = new SimpleAdapter(this, chatList, R.layout.list_chat_row, new String[] { "from", "message" }, new int[] { R.id.user_addr, R.id.chat_message });
 		
-		Intent serverService = new Intent(this, ClientService.class);
-		startService(serverService);
+		//Start the service that will contain the scatternet
+		Intent clientService = new Intent(this, ClientService.class);
+		startService(clientService);
 		
 		status = (TextView)findViewById(R.id.status);
 		
@@ -109,22 +114,24 @@ private TextView status = null;
 		chat.setText(BluetoothSettings.MY_BT_ADDR);
 		
 		Button send = (Button)findViewById(R.id.send_button);
+		
+		//Add the send button click listener
 		send.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View view) {
 				if(service != null && !chat.getText().toString().trim().isEmpty()) {
-					//Uri uri = Uri.parse(chat.getText().toString());
-					//Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-					
+					//Create the chat intent with the message attached
 					Intent intent = new Intent(MessageIntent.CHAT_MESSAGE);
 					intent.putExtra("message", chat.getText().toString());
 					
 					try {
+						//Send the message to the scatternet
 						service.sendMessage("00:00:00:00:00:00", intent);
 					} catch (RemoteException e) {
 						
 					}
 					
+					//Add the new message to the message list and adapter
 					HashMap<String,String> newMessage = new HashMap<String,String>();
 					
 					newMessage.put("from", BluetoothSettings.MY_BT_ADDR);
@@ -133,11 +140,13 @@ private TextView status = null;
 					chatList.add(newMessage);
 					chatAdapter.notifyDataSetChanged();
 					
+					//Clear the message from the text box
 					chat.setText("");
 				}
 			}
 		});
 		
+		//Setup the chat message list
 		ListView chatMessages = (ListView)findViewById(R.id.chat_list);
 		chatMessages.setAdapter(chatAdapter);
 	}
@@ -145,6 +154,8 @@ private TextView status = null;
 	@Override
 	public void onStart() {
 		super.onStart();
+		
+		//Bind the created service to this activity
 		bindService(new Intent(this, ClientService.class), connection, Context.BIND_AUTO_CREATE);
 	}
 	
@@ -159,6 +170,7 @@ private TextView status = null;
 			}
 		}
 		
+		//Unbind from the running service
 		unbindService(connection);
 		super.onStop();
 	}

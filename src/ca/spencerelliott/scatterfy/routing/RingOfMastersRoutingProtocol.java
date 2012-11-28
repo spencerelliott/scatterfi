@@ -59,10 +59,12 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	}
 	
 	@Override
-	public synchronized void sendMessage(String to, Intent message) {		
+	public synchronized void sendMessage(String to, Intent message) {
+		//Create a new routed message using the information provided
 		byte[] toBytes = RoutedMessage.convertAddressToByteArray(to);
 		RoutedMessage routed = new RoutedMessage(toBytes, message);
 		
+		//Send the message using the generic send method
 		sendMessage(routed);		
 	}
 	
@@ -76,16 +78,19 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 			return;
 		}
 		
+		//Add the id to the list of ids so this message will not be processed again
 		sendIds.add(routed.getId());
 		
 		//Check to see if this is a broadcast and should be forwarded everywhere
 		if(to.equals(BluetoothSettings.BROADCAST_MAC)) {
 			Log.i("Scatterfi", "Sending broadcast message from " + BluetoothSettings.MY_BT_ADDR);
 			
+			//Send message to the next node
 			if(next != null) {
 				next.writeMessage(routed.getByteMessage());
 			}
 			
+			//Send the message to all slaves attached to this device
 			for(BluetoothSocketDevice d : clients) {
 				d.writeMessage(routed.getByteMessage());
 			}
@@ -95,13 +100,14 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 		
 		//Check the list of clients and see if the message is for them
 		for(BluetoothSocketDevice d : clients) {
+			//Write the message to the specific device
 			if(d.getAddress().equals(to)) {
 				d.writeMessage(routed.getByteMessage());
 				return;
 			}
 		}
 		
-		//If the client is not in this piconet, forward it
+		//If the client is not in this piconet, forward it to the next one
 		if(next != null) {
 			next.writeMessage(routed.getByteMessage());
 		}
@@ -197,6 +203,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	public void lostConnection(BluetoothSocketDevice device) {
 		Log.i("Scatterfi", device.getAddress() + " lost connection");
 		
+		//Check to see if the disconnection was voluntary
 		if(!device.wasVoluntaryDisconnect()) {
 			Log.i("Scatterfi", "Involuntary disconnection from " + device.getAddress());
 			
@@ -207,12 +214,14 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 				d.cleanup();
 			}
 			
+			//Remove the disconnected device from the master list
 			allDevices.remove(device.getAddress());
 			
 			//Create the intent to send to the server when a connection is lost
 			Intent lostIntent = new Intent(MessageIntent.LOST_CONNECTION);
 			lostIntent.putExtra("mac", device.getAddress());
 			
+			//Send a message to the server notifying it of the disconnect
 			if(type == DeviceType.SERVER) {
 				sendMessage(BluetoothSettings.MY_BT_ADDR, lostIntent);
 			} else if(type == DeviceType.MASTER_SLAVE && next != null && !next.getAddress().equals(device)) {
@@ -236,7 +245,10 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 	public void destroyAndCleanUp() {
 		super.destroyAndCleanUp();
 		
+		//Stop listening for incoming connections
 		thread.stopListening();
+		
+		//Clear any connections this device has
 		clearAllConnections();
 	}
 	
@@ -326,6 +338,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 		}
 		allDevices.clear();
 		
+		//Reset the state
 		next = null;
 		clients.clear();
 	}
@@ -371,6 +384,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 					masterConnect(d);
 				}
 				
+				//Update the notification to show the user which device they're connected to
 				notifyUser("Connected to " + mac);
 			} catch(IOException e) { 
 				Log.e("Scatterfi", "Could not connect to device! " + e.getMessage() + " [" + intent.getAction() + "]");
@@ -398,8 +412,10 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 		} else if(intent.getAction().equals(MessageIntent.SERVER_MAC)) {
 			Log.i("Scatterfi", "Setting server address to " + intent.getExtras().getString("mac") + " [" + intent.getAction() + "]");
 			
+			//Save the server address for use later
 			serverAddress = intent.getExtras().getString("mac");
 		} else if(intent.getAction().equals(MessageIntent.NEW_DEVICE_CONNECTED) && type == DeviceType.SERVER) {
+			//Determine which type of device was connected
 			DeviceType connectionType = DeviceType.values()[intent.getExtras().getInt("type")];
 			
 			Log.i("Scatterfi", "New " + connectionType.name() + " connected" + " [" + intent.getAction() + "]");
@@ -445,6 +461,7 @@ public class RingOfMastersRoutingProtocol extends IRoutingProtocol {
 				}
 			}
 		} else {
+			//If the intent wasn't handled by this protocol, forward it to the super class
 			super.processIntent(message);
 		}
 	}

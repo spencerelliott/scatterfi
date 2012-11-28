@@ -24,6 +24,11 @@ public class BluetoothSocketDevice {
 	
 	private boolean voluntaryDisconnect = false;
 	
+	/**
+	 * Creates a new <code>BluetoothSocketDevice</code>
+	 * @param device The device that the socket is part of
+	 * @param socket The socket that will be used to communicate with the device
+	 */
 	public BluetoothSocketDevice(BluetoothDevice device, BluetoothSocket socket) {
 		this.device = device;
 		this.socket = socket;

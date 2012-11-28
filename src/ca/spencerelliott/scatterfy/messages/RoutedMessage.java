@@ -31,6 +31,7 @@ public class RoutedMessage {
 	 * @param message The previously create message
 	 */
 	public RoutedMessage(byte[] message) {
+		//Create a byte buffer to store the id (8 byte long)
 		ByteBuffer bBuffer = ByteBuffer.allocate(8);
 		bBuffer.put(message[0]);
 		bBuffer.put(message[1]);
@@ -41,12 +42,15 @@ public class RoutedMessage {
 		bBuffer.put(message[6]);
 		bBuffer.put(message[7]);
 		
+		//Retrieve the id from the buffer
 		id = bBuffer.getLong(0);
+		//Grab the to and from address bytes from the message
 		fromAddress = new byte[] { message[8], message[9], message[10], message[11], message[12], message[13] };
 		toAddress = new byte[] { message[14], message[15], message[16], message[17], message[18], message[19] };
 		
 		StringBuilder builder = new StringBuilder();
 		
+		//Read the rest of the message
 		for(int i = 20; i < message.length-EOM.length; i++) {
 			builder.append((char)message[i]);
 		}
@@ -54,6 +58,7 @@ public class RoutedMessage {
 		Log.i("Scatterfi", "Decoded message: id: " + id + ", to: " + convertByteArrayToAddress(toAddress) + ", from: " + convertByteArrayToAddress(fromAddress) + ", intent: " + builder.toString());
 		
 		try {
+			//Create the intent from the message contents
 			this.message = Intent.parseUri(builder.toString(), Intent.URI_INTENT_SCHEME);
 		} catch (URISyntaxException e) {
 			Log.e("Scatterfi", e.getMessage());
@@ -125,11 +130,14 @@ public class RoutedMessage {
 	 * @return A byte array containing the id, address and intent message
 	 */
 	public byte[] getByteMessage() {
+		//Create the buffer to store the id
 		ByteBuffer bBuffer = ByteBuffer.allocate(8);
 		bBuffer.putLong(id);
 		
+		//Get all bytes for the long
 		byte[] idBytes = bBuffer.array();
 		
+		//Create the initial header with the id, to address, and from address
 		byte[] header = new byte[] {
 			idBytes[0],
 			idBytes[1],
@@ -153,16 +161,20 @@ public class RoutedMessage {
 			toAddress[5]
 		};
 		
+		//Build the intent bytes
 		byte[] intent = message.toUri(Intent.URI_INTENT_SCHEME).getBytes();
 		
 		Log.i("Scatterfi", "Packaging intent: " + message.toUri(Intent.URI_INTENT_SCHEME));
 		
+		//Create the array that will become the final message
 		byte[] finalMessage = new byte[header.length + intent.length + EOM.length];
 		
+		//Write the entire message (header and intent) to the final array
 		for(int i = 0; i < finalMessage.length-EOM.length; i++) {
 			finalMessage[i] = i < header.length ? header[i] : intent[i - header.length];
 		}
 		
+		//Add the end of message bytes
 		finalMessage[finalMessage.length-3] = EOM[0];
 		finalMessage[finalMessage.length-2] = EOM[1];
 		finalMessage[finalMessage.length-1] = EOM[2];

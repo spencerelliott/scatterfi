@@ -11,9 +11,11 @@ public class ServerService extends BluetoothServerService {
 	public void onCreate() {
 		super.onCreate();
 		
+		//Create the intent for the notification
 		Intent notificationIntent = new Intent(this, ServerActivity.class);
 		PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 		
+		//Create the notification to tell the user that they are the server
 		NotificationCompat.Builder notiBuilder = new NotificationCompat.Builder(this)
 			.setSmallIcon(R.drawable.ic_launcher)
 			.setContentTitle("Scatterfi")

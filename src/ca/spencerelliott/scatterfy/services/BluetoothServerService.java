@@ -52,6 +52,10 @@ public class BluetoothServerService extends Service {
 		return stub;
 	}
 	
+	/**
+	 * Updates the type of device this service is acting on
+	 * @param type The type of device this service is acting as
+	 */
 	protected void updateType(DeviceType type) {
 		this.type = type;
 		protocol.setDeviceType(type);
